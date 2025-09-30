@@ -1,0 +1,8 @@
+"0","library(ggplot2)"
+"0","library(dplyr)"
+"0","ammonium_trial %>% filter(Round == ""2"") %>% ggplot(aes(x = Day, y = RFU, color = Culture, shape = factor (Round)) ) +"
+"0","  geom_point () +"
+"0","  theme_test () +"
+"0","  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +"
+"0","  scale_shape_manual(values = c(4)) +"
+"0","  ggtitle(expression(""Pyrodinium growth with "" * NH[4]^""+"" * "" addition and "" * NO[3]^""-"" * "" elimination""))"
