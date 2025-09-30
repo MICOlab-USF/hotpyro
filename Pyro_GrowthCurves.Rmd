@@ -1,0 +1,840 @@
+---
+title: "PyroHeatwave"
+author: "Maggi Brisbin"
+date: "2025-01-30"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup 
+import packages and functions
+```{r packages, warning=FALSE}
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+library(stringr)
+library(purrr)
+"%ni%" <- Negate("%in%")
+library(googlesheets4)
+library(patchwork)
+```
+
+
+# Trial 1 (Summer 2024 - Lauren)
+
+## Cell Counts 
+
+```{r import_data_t1}
+pconc <- read.csv("Pyrodinium_Concentration.csv")
+pconc$Date <- mdy(pconc$Date)
+
+pconc<- pconc %>% separate(Sample, into = c("Bact", "Temp", "Salinity"), sep = "_", remove = FALSE) %>%  mutate(Rep = str_sub(Bact, start = -1))
+names(pconc)[6] <- "Pyrodinium_Concentration"
+
+pconc$Bact <- str_sub(pconc$Bact, end=-2)
+```
+
+
+
+```{r plot}
+pconc %>% ggplot(aes(x = Date, y = Pyrodinium_Concentration, fill = Bact)) + geom_point(shape = 21, size = 2) +
+  facet_grid(Salinity ~ Temp) + theme_bw() + theme(panel.grid.major.x = element_blank(), panel.grid.minor.y = element_blank()) + scale_fill_manual(values = c("lightsalmon2"  , "#1BAAE2")) + ggtitle("Pyrodinium Growth") +ylab("P. bahamense (cells/µl)")
+
+```
+
+
+```{r plot}
+CELLS<- pconc %>% group_by(Bact, Temp, Salinity, Date) %>% 
+  dplyr::summarize(mean_conc = mean(Pyrodinium_Concentration), sd = sd(Pyrodinium_Concentration)) %>% 
+  ggplot(aes(x = Date, y = mean_conc, shape = Bact))+scale_shape_manual(values=c( 16, 24 )) +
+  theme_test()  +
+  geom_errorbar(aes(ymin=mean_conc-sd, ymax=mean_conc+sd), width=.1) +
+  geom_line(aes(linetype = Bact)) +
+  geom_point(size =2, fill = "white") +  facet_grid(Salinity ~ Temp) +ylab("P. bahamense (cells/µl)")
+
+CELLS
+```
+
+
+Final Biomass 
+```{r}
+Pyro_conc <- pconc %>% group_by(Bact, Temp, Salinity, Date) %>% 
+  dplyr::summarize(mean_conc = mean(Pyrodinium_Concentration), sd = sd(Pyrodinium_Concentration)) 
+
+Pyro_conc %>%  filter(Date == "2024-09-25") %>% 
+  ggplot(aes(x = Salinity, y = mean_conc, shape = Bact))+scale_shape_manual(values=c( 16, 24 )) +
+  theme_test()  +
+  geom_errorbar(aes(ymin=mean_conc-sd, ymax=mean_conc+sd), width=.1) +
+  geom_point(size =2, fill = "white") +  facet_grid( ~ Temp) +ylab("P. bahamense (cells/µl)")
+```
+ggsave("final_biomass.pdf", width = 6, height=4)
+
+Anova 2-way by Salinity and Bacteria
+```{r}
+final_H<- pconc %>%  filter(Date == "2024-09-25") %>%  filter(Temp == "H")
+
+
+heatwave_aov2 <- aov(Pyrodinium_Concentration ~ Salinity + Bact, data = final_H)
+summary(heatwave_aov2)
+```
+2-way anova With interactive effect:
+```{r}
+final_H<- pconc %>%  filter(Date == "2024-09-25") %>%  filter(Temp == "H")
+
+
+heatwave_aov2 <- aov(Pyrodinium_Concentration ~ Bact * Salinity, data = final_H)
+summary(heatwave_aov2)
+```
+```{r}
+library(broom)
+library(flextable)
+library(kableExtra)
+
+xx <- tidy(heatwave_aov2)
+
+
+flextable(xx)
+```
+
+
+
+
+```{r}
+TukeyHSD(heatwave_aov2, which = "Bact")
+```
+
+
+## Chlorophyll
+
+### Chla to cell count correlation
+```{r}
+chla <- read.csv("Chl_a.csv")
+chla<- chla %>% separate(Sample, into = c("Strain", "Temp", "Salinity"), sep = "_", remove = FALSE) %>%  mutate(Rep = str_sub(Strain, start = -1))
+
+chla<- chla %>%
+  mutate(Bact = case_when(Strain =="Axenic-1006" ~ "LD", Strain == "OTB-1006" ~ "D"))
+
+chla$Temp <- substr(chla$Temp, 1, 1)
+
+
+chla$SampleName <- paste0(paste0(chla$Bact, chla$Replicate), "_", chla$Temp, "_", chla$Salinity)
+
+chla$Date <- mdy(chla$Date)
+
+chla$mergeby <- paste0(chla$SampleName, "_", as.character(chla$Date))
+
+names(pconc)[1] <- "SampleName"
+pconc$mergeby <- paste0(pconc$SampleName, "_", as.character(pconc$Date))
+
+chl_cell<- left_join(pconc,chla, by = "mergeby")
+
+```
+
+```{r}
+chl_cell %>% ggplot(aes(x=Chlorophyll.a, y=Pyrodinium_Concentration)) + geom_point(alpha = 0.75) + theme_test() +geom_smooth(method = "lm", color = "red", se = FALSE )
+```
+
+```{r}
+model <- lm(Chlorophyll.a ~ Pyrodinium_Concentration, data = chl_cell)
+summary(model)
+```
+```{r}
+coefs <- coef(model)
+coefs
+```
+
+```{r}
+cat("y = ", coefs[2], "x + ", coefs[1], "\n")
+```
+ = 7100(.1) + 190
+900
+
+
+###Growth curves 
+
+```{r plot}
+CHLA_trial_1 <- chla %>% group_by(Bact, Temp, Salinity, Day) %>% 
+  dplyr::summarize(mean_chla = mean(Chlorophyll.a), sd = sd(Chlorophyll.a)) %>% 
+  ggplot(aes(x = Day, y = mean_chla, shape = Bact, color = Bact))+scale_shape_manual(values=c( 16, 17 )) +
+  theme_test()  + scale_color_manual(values = c("#9E0142","pink")) +
+  geom_errorbar(aes(ymin=mean_chla-sd, ymax=mean_chla+sd), color = "darkgrey", width=.1) +
+  geom_line() +
+  geom_point(size =2) +  facet_grid(Temp ~ Salinity) +ylab("Chlorophyll a (RFU)") + xlab("Experiment day") + ggtitle("Trial 1") + theme(legend.position = "bottom") 
+
+CHLA_trial_1
+```
+
+### Maximum chla 
+
+```{r}
+maxbiomass0 <- chla %>% group_by(Bact, Temp, Salinity, Replicate) %>% 
+   dplyr::summarize(max_b = max(Chlorophyll.a))
+
+Biomass0 <- maxbiomass0 %>% group_by(Bact, Temp, Salinity) %>% 
+  dplyr::summarize(mean_maxB = mean(max_b), sd = sd(max_b)) 
+
+Biomass0$Salinity <- as.character(Biomass0$Salinity)
+
+MaxBiomass_trial1 <- Biomass0%>% 
+  ggplot(aes(x = Salinity, y = mean_maxB, shape = Bact, color = Bact))+scale_shape_manual(values=c( 16, 17 )) +
+  theme_test()  + scale_color_manual(values = c("#9E0142","pink")) +
+  geom_errorbar(aes(ymin=mean_maxB-sd, ymax=mean_maxB+sd), color = "darkgrey" ,width=.1) +
+  geom_point(size =2, fill = "white") +  facet_grid(~Temp) +ylab("Maximum Chlorophyll a (RFU)") +xlab("Salinity (PSU)") + ggtitle("Trial 1") + theme(legend.position = "bottom")
+
+MaxBiomass_trial1
+```
+
+
+#### ANOVA
+Anova 2-way by Salinity and Bacteria
+```{r}
+maxbiomass0$Treatment <- paste(maxbiomass0$Bact, maxbiomass0$Temp, maxbiomass0$Salinity, sep="_" )
+t1_maxbio_aov <- aov(max_b ~ Bact*Salinity + Bact*Temp, data = maxbiomass0)
+summary(t1_maxbio_aov)
+```
+
+```{r}
+TukeyHSD(t1_maxbio_aov)
+```
+
+
+## Morphology
+```{r}
+photos <- read.csv("~/desktop//pyro/HeatWave_Preliminary/Pyro_Photos.csv")
+
+photos$Date <- mdy(photos$Date)
+
+photos<- photos %>% separate(Sample, into = c("Bact", "Temp", "Salinity"), sep = "_") %>%  mutate(Rep = str_sub(Bact, start = -1))
+
+photos$Bact <- str_sub(photos$Bact, end=-2)
+```
+
+```{r}
+photos %>% pivot_longer(!c(Bact, Temp, Rep, Salinity, Date), names_to = "category", values_to = "count" ) %>% filter(category %ni% c("Partial", "Empty.Image")) %>% filter(count>0) %>% 
+  ggplot(aes(x = Date, y = count, fill = category)) + geom_point(shape = 21, size = 2) +
+  facet_grid(Salinity ~ Temp+Bact) + theme_bw() + theme(panel.grid.major.x = element_blank(), panel.grid.minor.y = element_blank()) + ggtitle("Pyrodinium Growth") +ylab("P. bahamense (counts)")
+```
+ggsave("photo_data1.png")
+
+
+
+```{r}
+photos %>% pivot_longer(!c(Bact, Temp, Rep, Salinity, Date), names_to = "category", values_to = "val" ) %>% filter(category %ni% c("Partial", "Empty.Image")) %>% filter(val>0) %>% 
+  ggplot(aes(x = Date, y = val, fill = category)) + geom_bar(stat="identity") +
+  facet_grid(Salinity ~ Temp+Bact+Rep) + theme_bw() + theme(panel.grid.major.x = element_blank(), panel.grid.minor.y = element_blank()) + ggtitle("Pyrodinium Growth") +ylab("P. bahamense (counts)")
+```
+
+```{r}
+longer_photos<- photos %>% pivot_longer(!c(Bact, Temp, Rep, Salinity, Date), names_to = "category", values_to = "val" ) %>% filter(category %ni% c("Partial", "Empty.Image")) %>% group_by(Bact, Temp, Salinity, Date, category) %>% summarise(meancounts = mean(val))
+  
+  
+  
+longer_photos %>%   ggplot(aes(x = Date, y = meancounts, fill = category)) + geom_bar(stat="identity") +
+  facet_grid(Salinity ~ Temp+Bact) + theme_bw() + theme(panel.grid.major.x = element_blank(), panel.grid.minor.y = element_blank()) + ggtitle("Pyrodinium Growth") +ylab("P. bahamense (counts)") + scale_fill_manual(values = c("#41afaa", "#466eb4", "#00a0e1", "#e6a532", "#d7642c", "#af4b91")) + theme_test()
+```
+
+```{r}
+longer_photos<- photos %>% pivot_longer(!c(Bact, Temp, Rep, Salinity, Date), names_to = "category", values_to = "val" ) %>% filter(category %ni% c("Partial", "Empty.Image")) %>% group_by(Bact, Temp, Salinity, Date, category) %>% summarise(meancounts = mean(val)) %>% group_by(Bact, Temp, Salinity, Date) %>% mutate(sumcount = sum(meancounts)) %>% mutate(relabund = meancounts/sumcount)
+  
+  
+  
+longer_photos %>%  ggplot(aes(x = Date, y = relabund, fill = category)) + geom_bar(stat="identity") +
+  facet_grid(Salinity ~ Temp+Bact) + theme_bw() + theme(panel.grid.major.x = element_blank(), panel.grid.minor.y = element_blank()) + ggtitle("Pyrodinium Growth") +ylab("P. bahamense (counts)") + scale_fill_manual(values = c("#41afaa", "#466eb4", "#00a0e1", "#e6a532", "#d7642c", "#af4b91"))
+```
+
+
+
+```{r}
+photos %>% pivot_longer(!c(Bact, Temp, Rep, Salinity, Date), names_to = "category", values_to = "count" ) %>% filter(category %in% c("Angry..Popcorn.", "Cysting")) %>% filter(count>0) %>% 
+  ggplot(aes(x = Date, y = count, fill = category)) + geom_point(shape = 21, size = 2) +
+  facet_grid(Salinity ~ Temp+Bact) + theme_bw() + theme(panel.grid.major.x = element_blank(), panel.grid.minor.y = element_blank()) + ggtitle("Pyrodinium Growth") +ylab("P. bahamense (counts)")
+```
+Plot % cysting over time 
+```{r}
+rel_abund_by_rep<- photos %>% pivot_longer(!c(Bact, Temp, Rep, Salinity, Date), names_to = "category", values_to = "val" ) %>% group_by(Bact, Temp, Rep, Salinity, Date) %>%  mutate(sumcount = sum(val)) %>% mutate(percent = val / sumcount )
+
+rel_abund_by_rep %>% filter(category == "Cysting") %>%  ggplot(aes(x= Date, y = percent, color = Bact )) + geom_point() + facet_grid(Salinity~Temp)
+```
+
+
+# NEW TRIAL SUMMER 2025 - REUs
+## Trial 2 
+### Bacterial cell counts 
+```{r warning = FALSE}
+HWdf = data.frame(matrix(
+  vector(), 0, 16, dimnames=list(c(), c("Sample", "Bact" ,"Temp" , "Salinity", "Nitrogen", "Replicate", "Gate", "Volume", "X.Parameter", "Y.Parameter", "Concentration", "Date", "X.Mean", "Y.Mean", "X.SD", "Y.SD"))),
+                stringsAsFactors=F)
+
+for (i in system("ls BACT_COUNT_FILES/", intern = TRUE)) {
+  df<- read.csv(paste0("BACT_COUNT_FILES/",i))
+  date <- str_split_i(i, "_", 3)
+  date2<- str_extract(date, '.*(?=\\.csv$)')
+  df<- df %>% separate(Sample, into = c("Bact", "Temp", "Salinity", "var1", "var2"), sep = "_", remove = FALSE) %>%  mutate(Nitrogen = case_when(
+  var1 == "N" ~"NO3+NH4", 
+  var1 != "N" ~ "NO3"
+)) %>% mutate(Replicate = case_when(
+  var1 == "N" ~ var2,
+  var1 != "N" ~ var1
+)) %>% 
+  #filter(Gate =="R3") %>% 
+  select(Sample, Bact, Temp, Salinity, Nitrogen, Replicate, Gate, Volume, X.Parameter, Y.Parameter, Concentration, X.Mean, Y.Mean, X.SD, Y.SD) %>% 
+  filter(Sample != "blank") 
+  df$Date <- date2
+  HWdf <- rbind(HWdf, df)
+}
+
+HWdf$Date <- ymd(HWdf$Date)
+
+HWdf %>% filter(Gate == "R3") %>%ggplot(aes(x=Date, y = Concentration, fill = Bact))+ geom_hline(yintercept = 1000, color = "black", linetype = "dashed") + geom_point(shape = 21, size = 2, alpha = 0.8) + theme_test() + 
+  facet_grid(Temp ~ Nitrogen + Salinity) + theme(panel.grid.minor.x = element_blank(), panel.grid.minor.y = element_blank()) + scale_fill_manual(values = c("lightsalmon2"  , "#1BAAE2")) +ylab("Bacterial cell concentration (cells/µl)") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) + ggtitle ("Transfer 1")
+```
+
+
+```{r}
+HWdf %>% filter(Gate == "R3") %>% filter(Salinity == "25") %>% filter(Temp == "C") %>% filter(Nitrogen=="NO3") %>% ggplot(aes(x=Date, y = Concentration, fill = Bact)) + geom_point(shape = 21, size = 2, alpha = 0.8) + theme_test() + 
+  facet_grid(Temp ~ Nitrogen + Salinity) + theme(panel.grid.minor.x = element_blank(), panel.grid.minor.y = element_blank()) + scale_fill_manual(values = c("lightsalmon2"  , "#1BAAE2")) +ylab("Bacterial cell concentration (cells/µl)") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) + ggtitle ("Transfer 1")
+```
+
+
+
+```{r}
+hw <- read_sheet("https://docs.google.com/spreadsheets/d/1QmabtAvFo3E8VfDGswqs_Ls-hFO89DUt2Ichn5vxVL4/edit?gid=0#gid=0")
+
+hw$temp <- as.factor(hw$temp)
+
+hw1 <- hw %>%
+    mutate(Date = map_dbl(Date, first))
+hw1$Date <- as.POSIXct(hw1$Date, tz= "UTC")
+hw1$Date <- ymd(hw1$Date)
+day_date <- hw1 %>% filter(Transfer == 1) %>% select(Date, Day) %>% distinct()
+
+HWdf <- left_join(HWdf, day_date)
+HWdf$Bact <-factor(HWdf$Bact, levels = c("OTB", "LD"))
+
+bact_curve_t2 <- HWdf %>% filter(Gate == "R3") %>%  group_by(Bact, Temp, Salinity, Day, Nitrogen) %>% 
+  dplyr::summarize(mean_conc = mean(Concentration), sd = sd(Concentration)) %>% 
+  ggplot(aes(x = Day , y = mean_conc, shape = Bact, color = Bact)) + scale_shape_manual(values=c( 21,25)) +
+  theme_test()  +   scale_color_manual(values = c("darkgreen","#91CF60"))+
+  geom_errorbar(aes(ymin=mean_conc-sd, ymax=mean_conc+sd) , color = "darkgrey", width=.1) +
+  geom_line() +
+  geom_point(size =2, fill = "white") +  facet_grid(Temp ~ Nitrogen + Salinity) +ylab("Bacterial cell concentration (cells/µl)") + 
+  xlab("Experiment day") + ggtitle("Trial 2") + theme(legend.position = "bottom") 
+
+bact_curve_t2
+```
+
+
+```{r}
+HWdf %>% filter(Gate == "R3") %>% filter(Salinity == "25") %>% filter(Temp == "C") %>% filter(Nitrogen=="NO3") %>% group_by(Bact, Temp, Salinity, Day, Nitrogen) %>% 
+  dplyr::summarize(mean_conc = mean(Concentration), sd = sd(Concentration)) %>% 
+  ggplot(aes(x = Day , y = mean_conc, shape = Bact, color = Bact)) + scale_shape_manual(values=c( 21,25)) +
+  theme_test()  +   scale_color_manual(values = c("orange","blue"))+
+  geom_errorbar(aes(ymin=mean_conc-sd, ymax=mean_conc+sd) , color = "darkgrey", width=.1) +
+  geom_line() +
+  geom_point(size =2, fill = "white")  +ylab("Bacterial cell concentration (cells/µl)") + 
+  xlab("Experiment day") + theme(legend.position = "bottom") 
+
+```
+
+ggsave("bact_curve4pres.pdf", width = 3, height = 4)
+
+
+need to convert NAs to zeros
+mean and SD character to numeric
+
+```{r}
+
+HWdf[is.na(HWdf)] <- 0
+HWdf$X.Mean <- as.numeric(HWdf$X.Mean)
+HWdf$Y.Mean <- as.numeric(HWdf$Y.Mean)
+HWdf$X.SD <- as.numeric(HWdf$X.SD)
+HWdf$Y.SD <- as.numeric(HWdf$Y.SD)
+HWdf[is.na(HWdf)] <- 0
+
+HWdf %>% filter(X.Parameter == "FSC - FSC-H") %>% ggplot(aes(x = Day, y = X.Mean, color = Bact)) + geom_point() + facet_grid(Temp ~ Nitrogen + Salinity) +   theme_test() 
+```
+
+```{r}
+HWdf %>% filter(X.Parameter == "FSC - FSC-H") %>% ggplot(aes(x = Day, y = X.SD, color = Bact)) + geom_point() + facet_grid(Temp ~ Nitrogen + Salinity) +   theme_test() 
+```
+
+
+```{r}
+maxbiomass <- HWdf %>% filter(Gate == "R3") %>%  group_by(Bact, Temp, Salinity, Nitrogen, Replicate) %>% 
+   dplyr::summarize(max_b = max(Concentration))
+
+Biomass <- maxbiomass %>% group_by(Bact, Temp, Salinity, Nitrogen) %>% 
+  dplyr::summarize(mean_maxB = mean(max_b), sd = sd(max_b)) 
+
+Biomass$Salinity <- as.character(Biomass$Salinity)
+
+bact_biomass_2<- Biomass %>% 
+  ggplot(aes(x = Salinity, y = mean_maxB, shape = Bact, color = Bact))+scale_shape_manual(values=c( 21,25 )) +
+  theme_test()  + scale_color_manual(values = c("darkgreen","#91CF60")) +
+  geom_errorbar(aes(ymin=mean_maxB-sd, ymax=mean_maxB+sd), color = "darkgrey" , width=.1) +
+  geom_point(size =2, fill = "white", stroke = 1) +  facet_grid(~Temp+Nitrogen) +ylab("Maximum bacterial cell concentration (cells/µl)") +xlab("Salinity (PSU)") + ggtitle("Trial 2") + theme(legend.position = "bottom")
+
+bact_biomass_2
+```
+
+COMPARE Bact and Pyro Max ?! ?
+
+
+# Transfer 2
+```{r warning = FALSE}
+HWdf = data.frame(matrix(
+  vector(), 0, 16, dimnames=list(c(), c("Sample", "Bact" ,"Temp" , "Salinity", "Nitrogen", "Replicate", "Gate", "Volume", "X.Parameter", "Y.Parameter", "Concentration", "Date", "X.Mean", "Y.Mean", "X.SD", "Y.SD"))),
+                stringsAsFactors=F)
+
+for (i in system("ls BACT_COUNT_FILES_2/", intern = TRUE)) {
+  df<- read.csv(paste0("BACT_COUNT_FILES_2/",i))
+  date <- str_split_i(i, "_", 3)
+  date2<- str_extract(date, '.*(?=\\.csv$)')
+  df<- df %>% separate(Sample, into = c("Bact", "Temp", "Salinity", "var1", "var2"), sep = "_", remove = FALSE) %>%  mutate(Nitrogen = case_when(
+  var1 == "N" ~"NO3+NH4", 
+  var1 != "N" ~ "NO3"
+)) %>% mutate(Replicate = case_when(
+  var1 == "N" ~ var2,
+  var1 != "N" ~ var1
+)) %>% 
+   select(Sample, Bact, Temp, Salinity, Nitrogen, Replicate, Gate, Volume, X.Parameter, Y.Parameter, Concentration, X.Mean, Y.Mean, X.SD, Y.SD) %>% 
+  filter(Sample != "blank") 
+  df$Date <- date2
+  HWdf <- rbind(HWdf, df)
+}
+
+HWdf$Date <- ymd(HWdf$Date)
+HWdf<- HWdf %>% filter(Date != as_date("2025-07-05"))
+
+HWdf %>%  filter(Gate == "R3")  %>% ggplot(aes(x=Date, y = Concentration, fill = Bact))+  geom_point(shape = 21, size = 2, alpha = 0.8) + theme_test() + 
+  facet_grid(Temp ~ Nitrogen + Salinity) + theme(panel.grid.minor.x = element_blank(), panel.grid.minor.y = element_blank()) + scale_fill_manual(values = c("lightsalmon2"  , "#1BAAE2", "yellow")) +ylab("Bacterial cell concentration (cells/µl)") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) + ggtitle ("Transfer 2")
+```
+
+```{r}
+day_date2 <- hw1 %>% filter(Transfer == 2) %>%  select(Date, Day) %>% distinct()
+
+HWdf <- left_join(HWdf, day_date2)
+HWdf$Bact <-factor(HWdf$Bact, levels = c("OTB", "LD"))
+
+bact_curve_t3 <- HWdf %>% filter(Gate == "R3") %>%  group_by(Bact, Temp, Salinity, Day, Nitrogen) %>% 
+  dplyr::summarize(mean_conc = mean(Concentration), sd = sd(Concentration)) %>% 
+  ggplot(aes(x = Day , y = mean_conc, shape = Bact, color = Bact)) + scale_shape_manual(values=c( 21, 25 )) +
+  theme_test()  +   scale_color_manual(values = c("#2166AC","#92C5DE"))+
+  geom_errorbar(aes(ymin=mean_conc-sd, ymax=mean_conc+sd) , color = "darkgrey", width=.1) +
+  geom_line() +
+  geom_point(size =2, fill = "white") +  facet_grid(Temp ~ Nitrogen + Salinity) +ylab("Bacterial cell concentration (cells/µl)") + 
+  xlab("Experiment day") + ggtitle("Trial 3") + theme(legend.position = "bottom") 
+
+bact_curve_t3
+```
+
+```{r}
+maxbiomass <- HWdf %>% filter(Gate == "R3") %>%  group_by(Bact, Temp, Salinity, Nitrogen, Replicate) %>% 
+   dplyr::summarize(max_b = max(Concentration))
+
+Biomass <- maxbiomass %>% group_by(Bact, Temp, Salinity, Nitrogen) %>% 
+  dplyr::summarize(mean_maxB = mean(max_b), sd = sd(max_b)) 
+
+Biomass$Salinity <- as.character(Biomass$Salinity)
+
+bact_biomass3 <- Biomass %>% 
+  ggplot(aes(x = Salinity, y = mean_maxB, shape = Bact, color = Bact))+scale_shape_manual(values=c( 21,25 )) +
+  theme_test()  +    scale_color_manual(values = c("#2166AC","#92C5DE")) +
+  geom_errorbar(aes(ymin=mean_maxB-sd, ymax=mean_maxB+sd), color = "darkgrey" , width=.1) +
+  geom_point(size =2, fill = "white", stroke = 1) +  facet_grid(~Temp+Nitrogen) +ylab("Maximum bacterial cell concentration (cells/µl)") +xlab("Salinity (PSU)") + ggtitle("Trial 3") + theme(legend.position = "bottom")
+
+bact_biomass3
+```
+
+```{r}
+bact_curve_t2 + bact_curve_t3
+```
+
+ggsave("bact_count_curves.png", width =10, height = 6)
+
+```{r}
+bact_biomass_2 + bact_biomass3
+```
+
+ggsave("bact_max_biomass.png", width =8, height = 6)
+
+
+corr between max pyro biomass and max bact biomass?
+
+or corr between final pyro / final bact? 
+
+# Pyrodinium 
+## Cell counts 
+### Trial 2 
+```{r warning = FALSE}
+HWdf = data.frame(matrix(
+  vector(), 0, 14, dimnames=list(c(), c("Sample", "Bact" ,"Temp" , "Salinity",    "Nitrogen", "Replicate", "Concentration", "Date","X.Parameter", "Y.Parameter" , "X.Mean", "Y.Mean", "X.SD", "Y.SD" ))), stringsAsFactors=F)
+
+for (i in system("ls pyro_heatwave_t1/", intern = TRUE)) {
+  df<- read.csv(paste0("pyro_heatwave_t1/",i))
+  date <- str_split_i(i, "_", 3)
+  date2<- str_extract(date, '.*(?=\\.csv$)')
+  df<- df %>% separate(Sample, into = c("Bact", "Temp", "Salinity", "var1", "var2"), sep = "_", remove = FALSE) %>%  mutate(Nitrogen = case_when(
+  var1 == "N" ~"NO3+NH4", 
+  var1 != "N" ~ "NO3"
+)) %>% mutate(Replicate = case_when(
+  var1 == "N" ~ var2,
+  var1 != "N" ~ var1
+)) %>% 
+  filter(Gate =="R2") %>% 
+  select(Sample, Bact, Temp, Salinity, Nitrogen, Replicate, Concentration,X.Parameter, Y.Parameter, X.Mean, Y.Mean, X.SD, Y.SD) %>% 
+  filter(Sample != "blank") %>% 
+    filter(Sample != "Blank")
+  df$Date <- date2
+  HWdf <- rbind(HWdf, df)
+}
+
+HWdf$Date <- ymd(HWdf$Date)
+HWdf$Concentration <- as.numeric(HWdf$Concentration)
+
+HWdf %>% ggplot(aes(x=Date, y = Concentration, fill = Bact)) +  geom_point(shape = 21, size = 2, alpha = 0.9) +
+  facet_grid(Temp ~ Nitrogen + Salinity) + theme_bw() + theme(panel.grid.minor.x = element_blank(), panel.grid.minor.y = element_blank()) + scale_fill_manual(values = c("lightsalmon2"  , "#1BAAE2")) +ylab("Pyrodinium cell concentration (cells/µl)") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) + geom_hline(yintercept=0.1)
+```
+
+```{r}
+
+HWdf[is.na(HWdf)] <- 0
+HWdf$X.Mean <- as.numeric(HWdf$X.Mean)
+HWdf$Y.Mean <- as.numeric(HWdf$Y.Mean)
+HWdf$X.SD <- as.numeric(HWdf$X.SD)
+HWdf$Y.SD <- as.numeric(HWdf$Y.SD)
+HWdf[is.na(HWdf)] <- 0
+
+HWdf %>% filter(X.Parameter == "AreaSquareMicrons") %>% ggplot(aes(x = Date, y = X.Mean, color = Bact)) + geom_point() + facet_grid(Temp ~ Nitrogen + Salinity) +   theme_test() 
+```
+
+```{r}
+HWdf %>% filter(X.Parameter == "AverageIntensity") %>% ggplot(aes(x = Date, y = X.Mean, color = Bact)) + geom_point() + facet_grid(Temp ~ Nitrogen + Salinity) +   theme_test() 
+```
+Circularity Percent 
+```{r}
+HWdf %>% filter(Y.Parameter == "CircularityPercent ") %>% ggplot(aes(x = Date, y = Y.Mean, color = Bact)) + geom_point() + facet_grid(Temp ~ Nitrogen + Salinity) +   theme_test() 
+```
+
+
+```{r}
+HWdf<- HWdf %>%  mutate(TempNum = case_when(
+  Temp== "H" ~"32", 
+  Temp == "C" ~ "24"))
+
+HWdf$SampleID <- paste(HWdf$Bact, HWdf$TempNum, HWdf$Salinity, HWdf$Nitrogen, HWdf$Replicate, sep = "_" )
+```
+
+join RFU and cell counts by date
+
+```{r import data}
+hw <- read_sheet("https://docs.google.com/spreadsheets/d/1QmabtAvFo3E8VfDGswqs_Ls-hFO89DUt2Ichn5vxVL4/edit?usp=sharing")
+
+hw$temp <- as.factor(hw$temp)
+
+hw1 <- hw %>%
+    mutate(Date = map_dbl(Date, first))
+hw1$Date <- as.POSIXct(hw1$Date, tz= "UTC")
+hw1$Date <- ymd(hw1$Date)
+hw1 <- hw1 %>%  mutate(Nitrogen = case_when(
+  NH4 == "NH4" ~"NO3+NH4", 
+  NH4 == "-NH4" ~ "NO3"))
+
+hw1$SampleID <- paste(hw1$Isolate, as.character(hw1$temp), hw1$salinity, hw1$Nitrogen, hw1$Rep, sep = "_" )
+
+hw1_formerge<- hw1 %>% filter( Date >= as_date("2025-06-05")) 	
+
+hw1_formerge$mergeby <- paste(hw1_formerge$SampleID, as.character(hw1_formerge$Date), sep= "_")
+
+hw1_formerge <- hw1_formerge %>% select(SampleID, mergeby, CHL)
+
+transfer1<- hw1 %>% filter(Transfer==1) %>%  ggplot(aes(x=Date, y = CHL, fill = Isolate)) +  geom_point(shape = 21, size = 2) +
+  facet_grid(temp ~ NH4 + salinity) + theme_bw() + theme(panel.grid.minor.x = element_blank(), panel.grid.minor.y = element_blank()) + scale_fill_manual(values = c("lightsalmon2"  , "#1BAAE2")) +ylab("Pyrodinium Chlorophyll-a fluorescence (RFU)") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) + ggtitle("Trial 2") + geom_hline(yintercept=1975)
+
+transfer1
+```
+### Trial 3
+
+final cell counts for toxins
+```{r}
+finalcell <- read.csv("./pyro_counts_trial3/HW_PYRO_20250721.csv") %>% filter(Gate == "R2") %>%  filter(X.Parameter =="CircularityPercent ") %>% select(Plate, Sample, Gate, Concentration)
+
+write.csv(finalcell, "pyro_final_cell_conc.csv")
+```
+
+
+
+## Chlorophyll 
+### Trial 2
+```{r plot}
+hw1$Isolate <-factor(hw1$Isolate, levels = c("OTB", "LD"))
+
+CHLA <- hw1 %>% filter(Transfer==1) %>%  group_by(Isolate, temp, salinity, Day, Nitrogen) %>% 
+  dplyr::summarize(mean_chla = mean(CHL), sd = sd(CHL)) %>% 
+  ggplot(aes(x = Day, y = mean_chla, shape = Isolate, color = Isolate))+ scale_shape_manual(values=c( 16, 17 )) +
+  theme_test()  +   scale_color_manual(values = c("darkgreen","#91CF60")) +
+  geom_errorbar(aes(ymin=mean_chla-sd, ymax=mean_chla+sd), color = "darkgrey", width=.1) +
+  geom_line() + geom_point(size =2) +  facet_grid(temp ~ Nitrogen + salinity) +ylab("Chlorophyll a (RFU)") + 
+  xlab("Experiment day") + ggtitle("Trial 2") + theme(legend.position = "bottom") # +  geom_hline(yintercept=1975, color = "red")
+
+CHLA
+```
+ggsave("t1_pyrocurves.png", width = 6, height = 5)
+
+
+```{r}
+log_CHLA_t2 <- hw1 %>% filter(Transfer==1) %>%  ggplot(aes(x = Day, y = CHL, shape = Isolate, color = Isolate))+ scale_shape_manual(values=c( 16, 17 )) +
+  theme_test()  +   scale_color_manual(values = c("darkgreen","#91CF60")) +
+  geom_point(size =2, alpha =0.2)+ geom_smooth(se = FALSE) +  facet_grid(temp ~ Nitrogen + salinity) +
+  ylab("log10 Chlorophyll a (RFU)") + 
+  xlab("Experiment day") + ggtitle("Trial 2") + theme(legend.position = "bottom") +  
+  scale_x_continuous(breaks = c(0, 10, 20)) + scale_y_log10()
+
+log_CHLA_t2
+```
+
+```{r}
+library(growthrates)
+dat1 <-  hw1 %>% filter(Transfer==1)
+dat1$hours <- dat1$Day*24
+
+check<- dat1 %>%  filter(SampleID == "LD_32_20_NO3_1")
+
+many_easy_linear1 <- all_easylinear(CHL~hours | Isolate + temp + salinity + Nitrogen + Rep, data = dat1, h =8, quota = 1 )
+
+
+par(mfrow = c(12, 6))
+par(mar = c(1, 1, 1, 1))
+plot(many_easy_linear1, log = "y")
+```
+
+```{r}
+res1<- results(many_easy_linear1)
+
+res1 %>% ggplot(aes(x=salinity, y = mumax, color = Isolate)) + geom_point() + facet_grid(~temp+Nitrogen)
+```
+
+
+```{r}
+maxbiomass <- hw1 %>% filter(Transfer==1)  %>%  group_by(Isolate, temp, salinity, Nitrogen, Rep) %>% 
+   dplyr::summarize(max_b = max(CHL))
+
+Biomass <- maxbiomass %>% group_by(Isolate, temp, salinity, Nitrogen) %>% 
+  dplyr::summarize(mean_maxB = mean(max_b), sd = sd(max_b)) 
+
+Biomass$salinity <- as.character(Biomass$salinity)
+
+MaxBiomass_trial2 <- Biomass %>% 
+  ggplot(aes(x = salinity, y = mean_maxB, shape = Isolate, color = Isolate))+scale_shape_manual(values=c( 16, 17 )) +
+  theme_test()  + scale_color_manual(values = c("darkgreen","#91CF60")) +
+  geom_errorbar(aes(ymin=mean_maxB-sd, ymax=mean_maxB+sd), color = "darkgrey" ,width=.1) +
+  geom_point(size =2, fill = "white") +  facet_grid(~temp+Nitrogen) +ylab("Maximum Chlorophyll a (RFU)") +xlab("Salinity (PSU)") + ggtitle("Trial 2") + theme(legend.position = "bottom")
+
+MaxBiomass_trial2
+```
+ggsave("t1_maxchlorophyll.png")
+
+### Trial 3 
+
+
+```{r}
+CHLA_t3 <- hw1 %>% filter(Transfer==2) %>%  group_by(Isolate, temp, salinity, Day, Nitrogen) %>% 
+  dplyr::summarize(mean_chla = mean(CHL), sd = sd(CHL)) %>% 
+  ggplot(aes(x = Day, y = mean_chla, shape = Isolate, color = Isolate))+ scale_shape_manual(values=c( 16, 17 )) +
+  theme_test()  +   scale_color_manual(values = c("#2166AC","#92C5DE")) +
+  geom_errorbar(aes(ymin=mean_chla-sd, ymax=mean_chla+sd), color = "darkgrey", width=.1) +
+  geom_line() + geom_point(size =2) +  facet_grid(temp ~ Nitrogen + salinity) +ylab("Chlorophyll a (RFU)") + 
+  xlab("Experiment day") + ggtitle("Trial 3") + theme(legend.position = "bottom") +  scale_x_continuous(
+    breaks = c(0, 10, 20))# +  geom_hline(yintercept=1975, color = "red")
+
+CHLA_t3
+```
+
+Log -y 
+
+
+```{r}
+log_CHLA_t3 <- hw1 %>% filter(Transfer==2) %>%   
+  ggplot(aes(x = Day, y = CHL, shape = Isolate, color = Isolate))+ scale_shape_manual(values=c( 16, 17 )) +
+  theme_test()  +   scale_color_manual(values = c("#2166AC","#92C5DE"))  +
+   geom_point(size =2, alpha = .2) + geom_smooth(se = FALSE)+  facet_grid(temp ~ Nitrogen + salinity) +ylab("Chlorophyll a (RFU)") + 
+  xlab("Experiment day") + ggtitle("Trial 3") + theme(legend.position = "bottom") +  scale_x_continuous(
+    breaks = c(0, 10, 20)) + scale_y_log10()
+
+log_CHLA_t3
+```
+
+```{r}
+library(growthrates)
+
+dat <-  hw1 %>% filter(Transfer==2)
+dat$hours <- dat$Day*24
+
+splitted.data <- multisplit(dat, c("Isolate", "temp", "salinity", "Nitrogen", "Rep"))
+dat1 <- splitted.data[[1]]
+
+fit<- fit_easylinear(dat1$hours, dat1$CHL)
+```
+
+```{r}
+par(mfrow = c(1, 2))
+plot(fit, log = "y")
+plot(fit)
+```
+```{r}
+coef(fit) 
+```
+
+
+```{r}
+splitted.data <- multisplit(dat, c("Isolate", "temp", "salinity", "Nitrogen", "Rep"))
+
+GCdf = data.frame(matrix(
+  vector(), 0, 4, dimnames=list(c(), c("y0", "y0_lm", "mumax", "lag"))), stringsAsFactors=F)
+
+
+for (i in names(splitted.data)) {
+  dat <- splitted.data[[i]]
+  fit <- fit_easylinear(dat$hours, dat$CHL,  h =7, quota = 1)
+  x = t(data.frame(coef(fit))) 
+  row.names(x) <- i
+  GCdf<- rbind(GCdf, x)
+}
+
+GCdf$SampleID <- row.names(GCdf)
+
+GCdf <- GCdf %>% separate(SampleID, sep = ":", into = c("Isolate", "Temp", "Sal", "Nitrogen", "Rep"), remove = FALSE)
+
+
+GCdf %>% ggplot(aes(x=Sal, y = mumax, color = Isolate)) + geom_point() + facet_grid(~Temp+Nitrogen)
+
+```
+
+```{r}
+
+dat <-  hw1 %>% filter(Transfer==2)
+dat$hours <- dat$Day*24
+
+many_easy_linear <- all_easylinear(CHL~hours | Isolate + temp + salinity + Nitrogen+ Rep, data = dat, h =7, quota = 1 )
+
+
+par(mfrow = c(12, 6))
+par(mar = c(1, 1, 1, 1))
+plot(many_easy_linear, log = "y")
+```
+
+
+```{r}
+res<- results(many_easy_linear)
+
+res %>% ggplot(aes(x=salinity, y = mumax, color = Isolate)) + geom_point() + facet_grid(~temp+Nitrogen)
+```
+
+
+
+```{r}
+CHLA_trial_1 + CHLA + CHLA_t3 + 
+  plot_layout(widths = c(1, 2, 2))
+```
+ggsave("trial1_2_3_pyroCHL.pdf", width = 12, height = 6)
+ggsave("trial1_2_3_pyroCHL.png", width = 12, height = 6)
+
+
+```{r}
+maxbiomass2 <- hw1 %>% filter(Transfer==2) %>% group_by(Isolate, temp, salinity, Nitrogen, Rep) %>% 
+   dplyr::summarize(max_b = max(CHL))
+
+Biomass2 <- maxbiomass2 %>% group_by(Isolate, temp, salinity, Nitrogen) %>% 
+  dplyr::summarize(mean_maxB = mean(max_b), sd = sd(max_b)) 
+
+Biomass2$salinity <- as.character(Biomass2$salinity)
+
+MaxBiomass_trial3 <- Biomass2 %>% 
+  ggplot(aes(x = salinity, y = mean_maxB, shape = Isolate, color = Isolate))+scale_shape_manual(values=c( 16, 17 )) +
+  theme_test()  + scale_color_manual(values = c("#2166AC","#92C5DE")) +
+  geom_errorbar(aes(ymin=mean_maxB-sd, ymax=mean_maxB+sd), color = "darkgrey" ,width=.1) +
+  geom_point(size =2, fill = "white") +  facet_grid(~temp+Nitrogen) +ylab("Maximum Chlorophyll a (RFU)") +xlab("Salinity (PSU)") + ggtitle("Trial 3") + theme(legend.position = "bottom")
+
+MaxBiomass_trial3
+```
+
+```{r}
+MaxBiomass_trial1 + MaxBiomass_trial2 + MaxBiomass_trial3 + 
+  plot_layout(widths = c(1, 2, 2))
+```
+
+ggsave("pyro_maxChla.png", width = 11, height = 6 )
+
+```{r}
+HWdf$mergeby <- paste(HWdf$SampleID, as.character(HWdf$Date), sep = "_")
+
+corr_frame <- left_join(as_tibble(HWdf),hw1_formerge, by = "mergeby")
+
+corr_frame %>% filter(CHL >200) %>% filter(Concentration >0) %>%  ggplot(aes(x=CHL, y=Concentration)) + geom_point(size = .5, alpha = 0.75) + theme_test() +geom_smooth(method = "lm", se = FALSE, color = "red")
+```
+
+
+```{r}
+corr_frame %>% filter(CHL >250) %>% filter(Concentration >0) %>% filter(CHL < 11000) %>%  ggplot(aes(x=CHL, y=Concentration)) + geom_point(size = .5, alpha = 0.75)  + theme_test() +geom_smooth(method = "lm", se = FALSE, color = "red")
+```
+ggsave("chl_corr.png", width = 3, height = 4)
+
+```{r}
+model <- lm(CHL ~ Concentration, data = (corr_frame %>% filter(CHL < 12000) %>%  filter(CHL >250) %>% filter(Concentration >0)  ))
+summary(model)
+```
+
+```{r}
+coefs <- coef(model)
+coefs
+```
+
+```{r}
+cat("y = ", coefs[2], "x + ", coefs[1], "\n")
+```
+
+RFU for bloom = 1975
+
+
+```{r}
+corr_frame %>% ggplot(aes(x=CHL, y=Concentration, color = Temp)) + geom_point(alpha = 0.75) + theme_test() +geom_smooth(method = "lm", se = FALSE )
+```
+
+
+```{r}
+corr_frame  %>% ggplot(aes(x=CHL, y=Concentration, color = Salinity)) + geom_point(alpha = 0.75) + theme_test() +geom_smooth(method = "lm", se = FALSE )
+```
+
+
+```{r}
+corr_frame  %>% ggplot(aes(x=CHL, y=Concentration, color = Nitrogen)) + geom_point(alpha = 0.75) + theme_test() +geom_smooth(method = "lm", se = FALSE )
+```
+
+
+
+
+
+```{r}
+corr_frame  %>% ggplot(aes(x=CHL, y=Concentration, color = Bact)) + geom_point(alpha = 0.75) + theme_test() +geom_smooth(method = "lm", se = FALSE )
+```
+
+```{r}
+corr_frame<- corr_frame %>% mutate(total_cells_mL = Concentration * 1000) %>% filter(total_cells_mL != 0) %>%  mutate(RFU_per_cell = CHL/total_cells_mL)
+```
+
+RFU/cell
+
+```{r}
+corr_frame %>% ggplot(aes(x = Nitrogen, y= RFU_per_cell)) + geom_point()
+```
+
+
