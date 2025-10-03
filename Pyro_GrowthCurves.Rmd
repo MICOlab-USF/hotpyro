@@ -21,6 +21,9 @@ library(purrr)
 "%ni%" <- Negate("%in%")
 library(googlesheets4)
 library(patchwork)
+library(broom)
+library(flextable)
+library(kableExtra)
 ```
 
 
@@ -190,12 +193,20 @@ MaxBiomass_trial1
 
 
 #### ANOVA
-Anova 2-way by Salinity and Bacteria
+Factorial Anova by Salinity and Bacteria
 ```{r}
 maxbiomass0$Treatment <- paste(maxbiomass0$Bact, maxbiomass0$Temp, maxbiomass0$Salinity, sep="_" )
 t1_maxbio_aov <- aov(max_b ~ Bact*Salinity + Bact*Temp, data = maxbiomass0)
 summary(t1_maxbio_aov)
 ```
+
+
+```{r}
+xx <- tidy(t1_maxbio_aov)  %>% mutate(across(where(is.numeric), ~ round(., 3)))
+
+flextable(xx) %>% save_as_docx( path = "name.docx")
+```
+ggsave("aovtable1.pdf")
 
 ```{r}
 TukeyHSD(t1_maxbio_aov)
@@ -204,7 +215,7 @@ TukeyHSD(t1_maxbio_aov)
 
 ## Morphology
 ```{r}
-photos <- read.csv("~/desktop//pyro/HeatWave_Preliminary/Pyro_Photos.csv")
+photos <- read.csv("Pyro_Photos.csv")
 
 photos$Date <- mdy(photos$Date)
 
@@ -555,15 +566,9 @@ hw1_formerge<- hw1 %>% filter( Date >= as_date("2025-06-05"))
 hw1_formerge$mergeby <- paste(hw1_formerge$SampleID, as.character(hw1_formerge$Date), sep= "_")
 
 hw1_formerge <- hw1_formerge %>% select(SampleID, mergeby, CHL)
-
-transfer1<- hw1 %>% filter(Transfer==1) %>%  ggplot(aes(x=Date, y = CHL, fill = Isolate)) +  geom_point(shape = 21, size = 2) +
-  facet_grid(temp ~ NH4 + salinity) + theme_bw() + theme(panel.grid.minor.x = element_blank(), panel.grid.minor.y = element_blank()) + scale_fill_manual(values = c("lightsalmon2"  , "#1BAAE2")) +ylab("Pyrodinium Chlorophyll-a fluorescence (RFU)") +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) + ggtitle("Trial 2") + geom_hline(yintercept=1975)
-
-transfer1
 ```
-### Trial 3
 
+### Trial 3
 final cell counts for toxins
 ```{r}
 finalcell <- read.csv("./pyro_counts_trial3/HW_PYRO_20250721.csv") %>% filter(Gate == "R2") %>%  filter(X.Parameter =="CircularityPercent ") %>% select(Plate, Sample, Gate, Concentration)
@@ -643,6 +648,26 @@ MaxBiomass_trial2
 ```
 ggsave("t1_maxchlorophyll.png")
 
+
+
+
+```{r}
+t1_maxbio_aov <- aov(max_b ~ Isolate*salinity + Isolate*temp + Isolate*Nitrogen, data = maxbiomass)
+summary(t1_maxbio_aov)
+```
+
+
+
+
+```{r}
+xx <- tidy(t1_maxbio_aov)  %>% mutate(across(where(is.numeric), ~ round(., 3)))
+
+flextable(xx) %>% save_as_docx( path = "name.docx")
+```
+
+
+
+
 ### Trial 3 
 
 
@@ -685,14 +710,8 @@ dat1 <- splitted.data[[1]]
 fit<- fit_easylinear(dat1$hours, dat1$CHL)
 ```
 
-```{r}
-par(mfrow = c(1, 2))
-plot(fit, log = "y")
-plot(fit)
-```
-```{r}
-coef(fit) 
-```
+
+
 
 
 ```{r}
@@ -767,12 +786,30 @@ MaxBiomass_trial3 <- Biomass2 %>%
 MaxBiomass_trial3
 ```
 
+
+
+```{r}
+t3_maxbio_aov <- aov(max_b ~ Isolate*salinity + Isolate*temp + Isolate*Nitrogen, data = maxbiomass2)
+summary(t3_maxbio_aov)
+```
+
+
+```{r}
+xx <- tidy(t3_maxbio_aov)  %>% mutate(across(where(is.numeric), ~ round(., 3)))
+
+flextable(xx) %>% save_as_docx( path = "name.docx")
+```
+
+
+
+
+
 ```{r}
 MaxBiomass_trial1 + MaxBiomass_trial2 + MaxBiomass_trial3 + 
   plot_layout(widths = c(1, 2, 2))
 ```
 
-ggsave("pyro_maxChla.png", width = 11, height = 6 )
+ggsave("pyro_maxChla.pdf", width = 9, height = 5 )
 
 ```{r}
 HWdf$mergeby <- paste(HWdf$SampleID, as.character(HWdf$Date), sep = "_")
