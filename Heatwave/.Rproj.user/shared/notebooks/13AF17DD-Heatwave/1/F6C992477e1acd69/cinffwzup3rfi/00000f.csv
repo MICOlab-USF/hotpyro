@@ -1,0 +1,3 @@
+"0","hottrial$Date <- ymd(hottrial$Date)"
+"0","hottrial$Rep <- as.character(hottrial$Rep)"
+"0","hottrial$RFU <- as.numeric(hottrial$RFU)"
