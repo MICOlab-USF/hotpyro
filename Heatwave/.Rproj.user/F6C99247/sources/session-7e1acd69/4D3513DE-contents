@@ -1,0 +1,68 @@
+---
+title: "pyro_morph"
+author: "Lilianna"
+date: "2025-10-03"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+```{r import_packages, warning = FALSE}
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+library(stringr)
+library(purrr)
+"%ni%" <- Negate("%in%")
+library(googlesheets4)
+library(patchwork)
+```
+
+```{r}
+dat <- read_sheet ("https://docs.google.com/spreadsheets/d/1KcAYb0czCxgbFpE-7DaJSv4EGLgqm6xgdZbpPmvlkNc/edit?usp=sharing")
+
+str(pyro_morph)
+
+names(dat)
+
+```
+```{r}
+dat <- dat %>%
+  mutate(percent_cyst = (cyst / total_images) * 100)
+
+```
+
+
+```{r}
+summary_dat <- dat %>%
+  group_by(Sample) %>%
+  summarise(
+    mean_cyst = mean(percent_cyst, na.rm = TRUE),
+    sd_cyst   = sd(percent_cyst, na.rm = TRUE),
+    n         = n(),
+    se_cyst   = sd_cyst / sqrt(n),
+    .groups   = "drop"
+  )
+```
+ 
+
+```{r}
+dat <- dat %>%
+  separate(Sample, into = c("bact"), sep = "_", remove = FALSE)
+
+ggplot(dat, aes(x = bact, y = percent_cyst)) +
+  geom_jitter(width = 0.2, alpha = 0.5) +
+  stat_summary(fun = mean, geom = "point", size = 3, color = "blue") +
+  labs(y = "% Cysts", x = "Sample") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  theme_classic()
+
+```
+
+
+
