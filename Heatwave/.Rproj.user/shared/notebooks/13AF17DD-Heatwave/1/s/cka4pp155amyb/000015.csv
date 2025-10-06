@@ -1,0 +1,6 @@
+"0","""%ni%"" <- Negate(""%in%"")"
+"0",""
+"0","amm <- ammonium_trial %>% filter(Round %in% c(1, 3, 4, 5)) %>% separate(Culture, into = c(""bact""), sep = ""_"", remove = FALSE ) %>%"
+"0","  separate(bact, into = c(""x"", ""y"", ""z"", ""bact1""), sep = "" "", remove = FALSE) %>% mutate(bact1 = case_when(bact %in% c(""LL"", ""OTB"") ~ bact, bact %ni% c(""LL"", ""OTB"") ~ bact1))"
+"0"," "
+"0","amm %>% ggplot(aes(x=Day, y = RFU, color = bact1)) + geom_point(alpha = 0.8) + theme_test() + facet_grid(~Round) + scale_color_manual(values = c(""cornflowerblue"", ""gold"" ))+ geom_smooth(se = FALSE) #+ scale_y_log10()"
