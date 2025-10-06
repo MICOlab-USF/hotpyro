@@ -82,8 +82,11 @@ amm %>% ggplot(aes(x=Day, y = RFU, color = bact1)) + geom_point(alpha = 0.8) + t
 ```
 ggsave("ammoniumtrialclean_929.jpg", width = 10, height = 8)
 ggsave("ammoniumtrialclean_1001.jpg", width = 10, height = 8)
+<<<<<<< HEAD
 ggsave("ammoniumtrialclean_1003.jpg", width = 10, height = 8)
 ggsave("ammoniumtrialclean_1006.jpg", width = 10, height = 8)
+=======
+>>>>>>> parent of 4b4a0de (growthcurves)
 
 ## Growth rates for Round 1 of Low Diversity
 ```{r}
@@ -183,6 +186,29 @@ hottrial %>%
 
   
 ```
+<<<<<<< HEAD
 ggsave("hotonestrial_1001.jpg", width = 7, height = 6)
 ggsave("hotonestrial_1003.jpg", width = 7, height = 6)
 ggsave("hotonestrial_1006.jpg", width = 7, height = 6)
+=======
+ggsave("34trial_818.jpg", width = 6, height = 5)
+ggsave("34trial_820.jpg", width = 6, height = 5)
+ggsave("34trial_822.jpg", width = 6, height = 5)
+ggsave("34trial_825.jpg", width = 6, height = 5)
+ggsave("34trial_827.jpg", width = 7, height = 6)
+ggsave("34trial_829.jpg", width = 7, height = 6)
+ggsave("34trial_901.jpg", width = 7, height = 6)
+ggsave("34trial_903.jpg", width = 7, height = 6)
+ggsave("34trial_905.jpg", width = 7, height = 6)
+ggsave("34trial_908.jpg", width = 7, height = 6)
+ggsave("hotonestrial_910.jpg", width = 7, height = 6)
+ggsave("hotonestrial_912.jpg", width = 7, height = 6)
+ggsave("hotonestrial_915.jpg", width = 7, height = 6)
+ggsave("hotonestrial_917.jpg", width = 7, height = 6)
+ggsave("hotonestrial_919.jpg", width = 7, height = 6)
+ggsave("hotonestrial_922.jpg", width = 7, height = 6)
+ggsave("hotonestrial_924.jpg", width = 7, height = 6)
+ggsave("hotonestrial_926.jpg", width = 7, height = 6)
+ggsave("hotonestrial_929.jpg", width = 7, height = 6)
+ggsave("hotonestrial_1001.jpg", width = 7, height = 6)
+>>>>>>> parent of 4b4a0de (growthcurves)
