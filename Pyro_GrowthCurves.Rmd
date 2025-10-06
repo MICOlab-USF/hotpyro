@@ -338,9 +338,10 @@ rel_abund_by_rep %>% filter(category == "Cysting") %>%  ggplot(aes(x= Date, y = 
 ```
 
 
-# NEW TRIAL SUMMER 2025 - REUs
-## Trial 2 
-### Bacterial cell counts 
+# REU TRIAL SUMMER 2025
+## Bacteria
+### Trial 2
+#### Growth Curves
 ```{r warning = FALSE}
 HWdf = data.frame(matrix(
   vector(), 0, 16, dimnames=list(c(), c("Sample", "Bact" ,"Temp" , "Salinity", "Nitrogen", "Replicate", "Gate", "Volume", "X.Parameter", "Y.Parameter", "Concentration", "Date", "X.Mean", "Y.Mean", "X.SD", "Y.SD"))),
@@ -421,12 +422,8 @@ HWdf %>% filter(Gate == "R3") %>% filter(Salinity == "25") %>% filter(Temp == "C
 
 ggsave("bact_curve4pres.pdf", width = 3, height = 4)
 
-
-need to convert NAs to zeros
-mean and SD character to numeric
-
+#### Morphology 
 ```{r}
-
 HWdf[is.na(HWdf)] <- 0
 HWdf$X.Mean <- as.numeric(HWdf$X.Mean)
 HWdf$Y.Mean <- as.numeric(HWdf$Y.Mean)
@@ -441,12 +438,12 @@ HWdf %>% filter(X.Parameter == "FSC - FSC-H") %>% ggplot(aes(x = Day, y = X.Mean
 HWdf %>% filter(X.Parameter == "FSC - FSC-H") %>% ggplot(aes(x = Day, y = X.SD, color = Bact)) + geom_point() + facet_grid(Temp ~ Nitrogen + Salinity) +   theme_test() 
 ```
 
-
+#### Max biomass 
 ```{r}
-maxbiomass <- HWdf %>% filter(Gate == "R3") %>%  group_by(Bact, Temp, Salinity, Nitrogen, Replicate) %>% 
+bact_maxbiomass <- HWdf %>% filter(Gate == "R3") %>%  group_by(Bact, Temp, Salinity, Nitrogen, Replicate) %>% 
    dplyr::summarize(max_b = max(Concentration))
 
-Biomass <- maxbiomass %>% group_by(Bact, Temp, Salinity, Nitrogen) %>% 
+Biomass <- bact_maxbiomass %>% group_by(Bact, Temp, Salinity, Nitrogen) %>% 
   dplyr::summarize(mean_maxB = mean(max_b), sd = sd(max_b)) 
 
 Biomass$Salinity <- as.character(Biomass$Salinity)
@@ -460,10 +457,76 @@ bact_biomass_2<- Biomass %>%
 bact_biomass_2
 ```
 
-COMPARE Bact and Pyro Max ?! ?
+```{r}
+t1_bact_maxbio_aov <- aov(max_b ~ Bact*Salinity + Bact*Temp + Bact*Nitrogen, data = bact_maxbiomass)
+summary(t1_bact_maxbio_aov)
+```
+```{r}
+xx <- tidy(t1_bact_maxbio_aov)  %>% mutate(across(where(is.numeric), ~ round(., 3)))
+flextable(xx) %>% save_as_docx( path = "name.docx")
+```
 
 
-# Transfer 2
+#### growth rates
+```{r}
+log_bact_t2 <- HWdf %>% filter(Gate == "R3") %>%  ggplot(aes(x = Day, y = Concentration, shape = Bact, color = Bact))+ scale_shape_manual(values=c( 16, 17 )) +
+  theme_test()  +   scale_color_manual(values = c("darkgreen","#91CF60")) +
+  geom_point(size =2, alpha =0.2)+ geom_smooth(se = FALSE) +  facet_grid(Temp ~ Nitrogen + Salinity) +
+  ylab("log10 Bacterial cell concetration (ul-1)") + 
+  xlab("Experiment day") + ggtitle("Trial 2") + theme(legend.position = "bottom") +  
+  scale_x_continuous(breaks = c(0, 10, 20)) +  scale_y_continuous(trans = 'log2')
+
+log_bact_t2
+```
+
+```{r}
+bact2<-   HWdf %>% filter(Gate == "R3") 
+
+bact_easy_linear2 <- all_easylinear(Concentration~Day | Bact + Temp + Salinity + Nitrogen + Replicate, data = bact2, h =10, quota = 1 )
+
+par(mfrow = c(12, 6))
+par(mar = c(1, 1, 1, 1))
+plot(bact_easy_linear2, log = "y")
+```
+
+```{r}
+res1<- results(bact_easy_linear2)
+res1$Salinity <- as.character(res1$Salinity)
+res1$Bact <- factor(res1$Bact, levels =c("OTB", "LD"))
+
+res1  %>% ggplot(aes(x=Salinity, y = mumax, color = Bact, shape = Bact)) + geom_point() + facet_grid(~Temp+Nitrogen)
+```
+
+```{r}
+mean_res1 <- res1 %>% group_by(Bact, Temp, Salinity, Nitrogen) %>% 
+  dplyr::summarize(mean_gr = mean(mumax), sd = sd(mumax))
+
+bactgrowthrate_trial2<- mean_res1 %>% ggplot(aes(x = Salinity, y = mean_gr, shape = Bact, color = Bact)) +
+  scale_shape_manual(values=c( 16, 17 )) +
+  theme_test()  + scale_color_manual(values = c("darkgreen","#91CF60")) +
+  geom_errorbar(aes(ymin=mean_gr-sd, ymax=mean_gr+sd), color = "darkgrey" ,width=.1) +
+  geom_point(size =2, fill = "white") +  facet_grid(~Temp+Nitrogen) +ylab("Growth rate (d-1)") +xlab("Salinity (PSU)") + ggtitle("Trial 2") + theme(legend.position = "bottom")
+
+bactgrowthrate_trial2
+```
+
+```{r}
+t1_gr_aov <- aov(mumax ~ Isolate*salinity + Isolate*temp + Isolate*Nitrogen, data = res1)
+summary(t1_gr_aov)
+```
+```{r}
+xx <- tidy(t1_gr_aov)  %>% mutate(across(where(is.numeric), ~ round(., 3)))
+flextable(xx) %>% save_as_docx( path = "name.docx")
+```
+
+
+
+
+
+
+
+### Trial 3
+#### Growth Curves
 ```{r warning = FALSE}
 HWdf = data.frame(matrix(
   vector(), 0, 16, dimnames=list(c(), c("Sample", "Bact" ,"Temp" , "Salinity", "Nitrogen", "Replicate", "Gate", "Volume", "X.Parameter", "Y.Parameter", "Concentration", "Date", "X.Mean", "Y.Mean", "X.SD", "Y.SD"))),
@@ -512,11 +575,12 @@ bact_curve_t3 <- HWdf %>% filter(Gate == "R3") %>%  group_by(Bact, Temp, Salinit
 bact_curve_t3
 ```
 
+#### Max Biomass
 ```{r}
-maxbiomass <- HWdf %>% filter(Gate == "R3") %>%  group_by(Bact, Temp, Salinity, Nitrogen, Replicate) %>% 
+bact_maxbiomass2 <- HWdf %>% filter(Gate == "R3") %>%  group_by(Bact, Temp, Salinity, Nitrogen, Replicate) %>% 
    dplyr::summarize(max_b = max(Concentration))
 
-Biomass <- maxbiomass %>% group_by(Bact, Temp, Salinity, Nitrogen) %>% 
+Biomass <- bact_maxbiomass2 %>% group_by(Bact, Temp, Salinity, Nitrogen) %>% 
   dplyr::summarize(mean_maxB = mean(max_b), sd = sd(max_b)) 
 
 Biomass$Salinity <- as.character(Biomass$Salinity)
@@ -530,18 +594,15 @@ bact_biomass3 <- Biomass %>%
 bact_biomass3
 ```
 
-```{r}
-bact_curve_t2 + bact_curve_t3
-```
-
-ggsave("bact_count_curves.png", width =10, height = 6)
 
 ```{r}
-bact_biomass_2 + bact_biomass3
+t2_bact_maxbio_aov <- aov(max_b ~ Bact*Salinity + Bact*Temp + Bact*Nitrogen, data = bact_maxbiomass2)
+summary(t2_bact_maxbio_aov)
 ```
-
-ggsave("bact_max_biomass.png", width =8, height = 6)
-
+```{r}
+xx <- tidy(t2_bact_maxbio_aov)  %>% mutate(across(where(is.numeric), ~ round(., 3)))
+flextable(xx) %>% save_as_docx( path = "name.docx")
+```
 
 corr between max pyro biomass and max bact biomass?
 
@@ -848,15 +909,15 @@ flextable(xx) %>% save_as_docx( path = "name.docx")
 ```
 
 # Composite Plots 
-
-## Growth curves
+## Pyro 
+### Growth curves
 ```{r}
 CHLA_trial_1 + CHLA + CHLA_t3 + 
   plot_layout(widths = c(1, 2, 2))
 ```
 ggsave("trial1_2_3_pyroCHL.pdf", width = 12, height = 6)
 
-## Max Biomass
+### Max Biomass
 ```{r}
 MaxBiomass_trial1 + MaxBiomass_trial2 + MaxBiomass_trial3 + 
   plot_layout(widths = c(1, 2, 2))
@@ -864,7 +925,7 @@ MaxBiomass_trial1 + MaxBiomass_trial2 + MaxBiomass_trial3 +
 
 ggsave("pyro_maxChla.pdf", width = 9, height = 5 )
 
-## GrowthRates
+### GrowthRates
 
 ```{r}
 growthrate_trial1 + growthrate_trial2 + growthrate_trial3 + 
@@ -873,6 +934,27 @@ growthrate_trial1 + growthrate_trial2 + growthrate_trial3 +
 
 ggsave("pyro_gr.pdf", width = 9, height = 5 )
 
+##Bacteria 
+### Growth Curves 
+
+
+```{r}
+bact_curve_t2 + bact_curve_t3
+```
+
+ggsave("bact_count_curves.png", width =10, height = 6)
+
+### Maxbiomass
+```{r}
+bact_biomass_2 + bact_biomass3
+```
+
+ggsave("bact_max_biomass.png", width =8, height = 6)
+
+### Growthrates
+```{r}
+
+```
 
 
 # Corr Chla + cell counts
