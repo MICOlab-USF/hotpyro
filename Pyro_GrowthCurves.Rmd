@@ -225,6 +225,7 @@ photos$Bact <- str_sub(photos$Bact, end=-2)
 ```
 
 ```{r}
+
 photos %>% pivot_longer(!c(Bact, Temp, Rep, Salinity, Date), names_to = "category", values_to = "count" ) %>% filter(category %ni% c("Partial", "Empty.Image")) %>% filter(count>0) %>% 
   ggplot(aes(x = Date, y = count, fill = category)) + geom_point(shape = 21, size = 2) +
   facet_grid(Salinity ~ Temp+Bact) + theme_bw() + theme(panel.grid.major.x = element_blank(), panel.grid.minor.y = element_blank()) + ggtitle("Pyrodinium Growth") +ylab("P. bahamense (counts)")

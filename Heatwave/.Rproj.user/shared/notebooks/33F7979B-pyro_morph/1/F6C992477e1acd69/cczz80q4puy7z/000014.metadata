@@ -1,1 +1,0 @@
-{"height":344.8702101359703,"width":558.0,"dpi":-1.0,"size_behavior":0,"conditions":[[1,"Warning :\u001B[1m\u001B[22mRemoved 552 rows containing non-finite outside the scale range\n(`stat_summary()`).\n"],[1,"Warning :\u001B[1m\u001B[22mRemoved 552 rows containing missing values or values outside the\nscale range (`geom_point()`).\n"]]}

@@ -1,6 +1,0 @@
-"0","ggplot(dat, aes(x = Sample, y = percent_cyst)) +"
-"0","  geom_jitter(width = 0.2, alpha = 0.5) +"
-"0","  stat_summary(fun = mean, geom = ""point"", size = 3, color = ""red"") +"
-"0","  labs(y = ""% Cysts"", x = ""Sample"") +"
-"0","  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +"
-"0","  theme_classic()"

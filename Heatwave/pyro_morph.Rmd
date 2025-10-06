@@ -50,13 +50,170 @@ summary_dat <- dat %>%
   )
 ```
  
+
 ```{r}
-ggplot(dat, aes(x = Sample, y = percent_cyst)) +
+dat <- dat %>%
+  separate(Sample, into = c("bact"), sep = "_", remove = FALSE)
+
+ggplot(dat, aes(x = bact, y = percent_cyst)) +
   geom_jitter(width = 0.2, alpha = 0.5) +
-  stat_summary(fun = mean, geom = "point", size = 3, color = "red") +
+  stat_summary(fun = mean, geom = "point", size = 3, color = "blue") +
   labs(y = "% Cysts", x = "Sample") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   theme_classic()
+
+```
+```{r}
+dat <-  read_sheet ("https://docs.google.com/spreadsheets/d/1KcAYb0czCxgbFpE-7DaJSv4EGLgqm6xgdZbpPmvlkNc/edit?usp=sharing")
+
+dat$Date <- mdy(dat$Date)
+
+morph <- dat %>% 
+  separate(Sample, into = c("Bact", "Temp", "Salinity"), sep = "_") %>%  
+  mutate(
+    Rep = str_sub(Bact, start = -1),   # last character = replicate
+    Bact = str_sub(Bact, end = -2)     # remove last two characters from Bact
+  )
+
+morph$Bact <- str_sub(morph$Bact, end=-2)
+```
+## All morphs
+```{r}
+library(googlesheets4)
+library(dplyr)
+library(tidyr)
+library(lubridate)
+library(ggplot2)
+library(stringr)
+
+dat <- read_sheet("https://docs.google.com/spreadsheets/d/1KcAYb0czCxgbFpE-7DaJSv4EGLgqm6xgdZbpPmvlkNc/edit?usp=sharing")
+```
+
+
+```{r}
+dat <- dat %>%
+  mutate(
+    Date = parse_date_time(Date, orders = c("mdy", "dmy", "ymd"))
+  ) %>%
+  filter(!is.na(Date))   # remove rows that couldn't be parsed
+
+
+if(nrow(dat) == 0) stop("No valid Date values found in your data!")
+
+morph <- dat %>%
+  separate(Sample, into = c("Bact", "Temp", "Salinity"), sep = "_", remove = FALSE) %>%
+  mutate(
+    Rep  = str_sub(Bact, start = -1),
+    Bact = str_sub(Bact, end = -2)
+  )
+```
+
+
+```{r}
+morph_long <- morph %>%
+  pivot_longer(
+    cols = -c(Sample, Bact, Temp, Rep, Salinity, Date),
+    names_to = "category",
+    values_to = "count"
+  ) %>%
+  filter(category %ni% c("Partial", "Empty.Image")) %>%   # remove unwanted categories
+  mutate(
+    count    = as.numeric(count),
+    Temp     = factor(Temp),
+    Salinity = factor(Salinity),
+    Bact     = factor(Bact)
+  ) %>%
+  filter(!is.na(Temp) & !is.na(Salinity) & !is.na(Bact) & !is.na(count) & count > 0)
+
+if(nrow(morph_long) == 0) stop("No valid rows left for plotting after filtering!")
+```
+
+
+```{r}
+morph_long <- morph_long %>%
+  filter(category != "total_images")   # remove total_images category
+
+ggplot(morph_long, aes(x = Date, y = count, fill = category)) +
+  geom_point(shape = 21, size = 2) +
+  facet_grid(Salinity ~ Temp + Bact) +
+  theme_bw() +
+  theme(
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.y = element_blank()
+  ) +
+  ggtitle("Pyrodinium Growth") +
+  ylab("P. bahamense (counts)")
+```
+
+
+## % Cyst
+
+```{r}
+library(googlesheets4)
+library(dplyr)
+library(tidyr)
+library(lubridate)
+library(ggplot2)
+library(stringr)
+
+# 1️⃣ Load data
+dat <- read_sheet("https://docs.google.com/spreadsheets/d/1KcAYb0czCxgbFpE-7DaJSv4EGLgqm6xgdZbpPmvlkNc/edit?usp=sharing")
+
+# 2️⃣ Parse Date safely
+dat <- dat %>%
+  mutate(Date = parse_date_time(Date, orders = c("mdy", "dmy", "ymd"))) %>%
+  filter(!is.na(Date))
+
+# 3️⃣ Separate Sample
+morph <- dat %>%
+  separate(Sample, into = c("Bact", "Temp", "Salinity"), sep = "_", remove = FALSE) %>%
+  mutate(
+    Rep  = str_sub(Bact, start = -1),
+    Bact = str_sub(Bact, end = -2)
+  )
+
+# 4️⃣ Pivot longer and calculate relative abundance
+rel_abund_by_rep <- morph %>%
+  pivot_longer(
+    cols = -c(Bact, Temp, Rep, Salinity, Date, Sample),  # pivot only numeric columns
+    names_to = "category",
+    values_to = "val"
+  ) %>%
+  filter(category != "total_images") %>%
+  group_by(Bact, Temp, Rep, Salinity, Date) %>%
+  mutate(
+    sumcount = sum(val, na.rm = TRUE),
+    percent  = val / sumcount
+  ) %>%
+  ungroup()
+
+# 5️⃣ Check for presence of "Cyst" category
+if("cyst" %in% rel_abund_by_rep$category){
+  
+  # Filter for Cyst and remove NAs
+  cyst_data <- rel_abund_by_rep %>%
+    filter(category == "cyst") %>%
+    filter(!is.na(percent))
+  
+  if(nrow(cyst_data) > 0){
+    # Plot
+    ggplot(cyst_data, aes(x = Date, y = percent, color = Bact)) +
+      geom_point() +
+      facet_grid(Salinity ~ Temp) +
+      theme_bw() +
+      theme(
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.y = element_blank()
+      ) +
+      ggtitle("Relative Abundance of Cysts by Replicate") +
+      ylab("Percent of total counts")
+  } else {
+    message("No rows with valid 'Cyst' data to plot.")
+  }
+  
+} else {
+  message("No 'Cyst' category present in the dataset!")
+}
 
 
 ```
