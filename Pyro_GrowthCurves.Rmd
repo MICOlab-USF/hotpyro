@@ -24,6 +24,7 @@ library(patchwork)
 library(broom)
 library(flextable)
 library(kableExtra)
+library(growthrates)
 ```
 
 
@@ -171,7 +172,12 @@ CHLA_trial_1 <- chla %>% group_by(Bact, Temp, Salinity, Day) %>%
 CHLA_trial_1
 ```
 
-### Maximum chla 
+
+#### Growth Rates 
+
+
+
+#### Maximum chla 
 
 ```{r}
 maxbiomass0 <- chla %>% group_by(Bact, Temp, Salinity, Replicate) %>% 
@@ -595,7 +601,7 @@ CHLA
 ```
 ggsave("t1_pyrocurves.png", width = 6, height = 5)
 
-
+#### growth rates
 ```{r}
 log_CHLA_t2 <- hw1 %>% filter(Transfer==1) %>%  ggplot(aes(x = Day, y = CHL, shape = Isolate, color = Isolate))+ scale_shape_manual(values=c( 16, 17 )) +
   theme_test()  +   scale_color_manual(values = c("darkgreen","#91CF60")) +
@@ -608,13 +614,12 @@ log_CHLA_t2
 ```
 
 ```{r}
-library(growthrates)
 dat1 <-  hw1 %>% filter(Transfer==1)
 dat1$hours <- dat1$Day*24
 
 check<- dat1 %>%  filter(SampleID == "LD_32_20_NO3_1")
 
-many_easy_linear1 <- all_easylinear(CHL~hours | Isolate + temp + salinity + Nitrogen + Rep, data = dat1, h =8, quota = 1 )
+many_easy_linear1 <- all_easylinear(CHL~hours | Isolate + temp + salinity + Nitrogen + Rep, data = dat1, h =9, quota = 1 )
 
 
 par(mfrow = c(12, 6))
@@ -624,10 +629,32 @@ plot(many_easy_linear1, log = "y")
 
 ```{r}
 res1<- results(many_easy_linear1)
+res1$salinity <- as.character(res1$salinity)
+res1$Isolate <- factor(res1$Isolate, levels =c("OTB", "LD"))
 
-res1 %>% ggplot(aes(x=salinity, y = mumax, color = Isolate)) + geom_point() + facet_grid(~temp+Nitrogen)
+res1  %>% ggplot(aes(x=salinity, y = mumax, color = Isolate, shape = Isolate)) + geom_point() + facet_grid(~temp+Nitrogen)
 ```
 
+```{r}
+mean_res1 <- res1 %>% group_by(Isolate, temp, salinity, Nitrogen) %>% 
+  dplyr::summarize(mean_gr = mean(mumax), sd = sd(mumax))
+
+growthrate_trial2<- mean_res1 %>% ggplot(aes(x = salinity, y = mean_gr, shape = Isolate, color = Isolate)) +
+  scale_shape_manual(values=c( 16, 17 )) +
+  theme_test()  + scale_color_manual(values = c("darkgreen","#91CF60")) +
+  geom_errorbar(aes(ymin=mean_gr-sd, ymax=mean_gr+sd), color = "darkgrey" ,width=.1) +
+  geom_point(size =2, fill = "white") +  facet_grid(~temp+Nitrogen) +ylab("Growth rate (d-1)") +xlab("Salinity (PSU)") + ggtitle("Trial 2") + theme(legend.position = "bottom")
+
+growthrate_trial2
+```
+
+```{r}
+t1_gr_aov <- aov(mumax ~ Isolate*salinity + Isolate*temp + Isolate*Nitrogen, data = res1)
+summary(t1_gr_aov)
+```
+
+
+#### max biomass
 
 ```{r}
 maxbiomass <- hw1 %>% filter(Transfer==1)  %>%  group_by(Isolate, temp, salinity, Nitrogen, Rep) %>% 
@@ -646,9 +673,6 @@ MaxBiomass_trial2 <- Biomass %>%
 
 MaxBiomass_trial2
 ```
-ggsave("t1_maxchlorophyll.png")
-
-
 
 
 ```{r}
@@ -661,7 +685,6 @@ summary(t1_maxbio_aov)
 
 ```{r}
 xx <- tidy(t1_maxbio_aov)  %>% mutate(across(where(is.numeric), ~ round(., 3)))
-
 flextable(xx) %>% save_as_docx( path = "name.docx")
 ```
 
@@ -686,7 +709,7 @@ CHLA_t3
 
 Log -y 
 
-
+#### growth rates  
 ```{r}
 log_CHLA_t3 <- hw1 %>% filter(Transfer==2) %>%   
   ggplot(aes(x = Day, y = CHL, shape = Isolate, color = Isolate))+ scale_shape_manual(values=c( 16, 17 )) +
@@ -699,73 +722,43 @@ log_CHLA_t3
 ```
 
 ```{r}
-library(growthrates)
+dat2 <-  hw1 %>% filter(Transfer==2)
+dat2$hours <- dat2$Day*24
 
-dat <-  hw1 %>% filter(Transfer==2)
-dat$hours <- dat$Day*24
-
-splitted.data <- multisplit(dat, c("Isolate", "temp", "salinity", "Nitrogen", "Rep"))
-dat1 <- splitted.data[[1]]
-
-fit<- fit_easylinear(dat1$hours, dat1$CHL)
-```
-
-
-
-
-
-```{r}
-splitted.data <- multisplit(dat, c("Isolate", "temp", "salinity", "Nitrogen", "Rep"))
-
-GCdf = data.frame(matrix(
-  vector(), 0, 4, dimnames=list(c(), c("y0", "y0_lm", "mumax", "lag"))), stringsAsFactors=F)
-
-
-for (i in names(splitted.data)) {
-  dat <- splitted.data[[i]]
-  fit <- fit_easylinear(dat$hours, dat$CHL,  h =7, quota = 1)
-  x = t(data.frame(coef(fit))) 
-  row.names(x) <- i
-  GCdf<- rbind(GCdf, x)
-}
-
-GCdf$SampleID <- row.names(GCdf)
-
-GCdf <- GCdf %>% separate(SampleID, sep = ":", into = c("Isolate", "Temp", "Sal", "Nitrogen", "Rep"), remove = FALSE)
-
-
-GCdf %>% ggplot(aes(x=Sal, y = mumax, color = Isolate)) + geom_point() + facet_grid(~Temp+Nitrogen)
-
-```
-
-```{r}
-
-dat <-  hw1 %>% filter(Transfer==2)
-dat$hours <- dat$Day*24
-
-many_easy_linear <- all_easylinear(CHL~hours | Isolate + temp + salinity + Nitrogen+ Rep, data = dat, h =7, quota = 1 )
+many_easy_linear2 <- all_easylinear(CHL~hours | Isolate + temp + salinity + Nitrogen + Rep, data = dat2, h =6, quota = 1 )
 
 
 par(mfrow = c(12, 6))
 par(mar = c(1, 1, 1, 1))
-plot(many_easy_linear, log = "y")
+plot(many_easy_linear2, log = "y")
 ```
-
 
 ```{r}
-res<- results(many_easy_linear)
+res2<- results(many_easy_linear2)
+res2$salinity <- as.character(res2$salinity)
+res2$Isolate <- factor(res2$Isolate, levels =c("OTB", "LD"))
 
-res %>% ggplot(aes(x=salinity, y = mumax, color = Isolate)) + geom_point() + facet_grid(~temp+Nitrogen)
+res2  %>% ggplot(aes(x=salinity, y = mumax, color = Isolate, shape = Isolate)) + geom_point() + facet_grid(~temp+Nitrogen)
 ```
-
-
 
 ```{r}
-CHLA_trial_1 + CHLA + CHLA_t3 + 
-  plot_layout(widths = c(1, 2, 2))
+mean_res2 <- res2 %>% group_by(Isolate, temp, salinity, Nitrogen) %>% 
+  dplyr::summarize(mean_gr = mean(mumax), sd = sd(mumax))
+
+growthrate_trial3<- mean_res2 %>% ggplot(aes(x = salinity, y = mean_gr, shape = Isolate, color = Isolate)) +
+  scale_shape_manual(values=c( 16, 17 )) +
+  theme_test()  + scale_color_manual(values = c("#2166AC","#92C5DE")) +
+  geom_errorbar(aes(ymin=mean_gr-sd, ymax=mean_gr+sd), color = "darkgrey" ,width=.1) +
+  geom_point(size =2, fill = "white") +  facet_grid(~temp+Nitrogen) +ylab("Growth rate (d-1)") +xlab("Salinity (PSU)") + ggtitle("Trial 2") + theme(legend.position = "bottom")
+
+growthrate_trial3
 ```
-ggsave("trial1_2_3_pyroCHL.pdf", width = 12, height = 6)
-ggsave("trial1_2_3_pyroCHL.png", width = 12, height = 6)
+
+```{r}
+t2_gr_aov <- aov(mumax ~ Isolate*salinity + Isolate*temp + Isolate*Nitrogen, data = res2)
+summary(t2_gr_aov)
+```
+
 
 
 ```{r}
@@ -800,8 +793,14 @@ xx <- tidy(t3_maxbio_aov)  %>% mutate(across(where(is.numeric), ~ round(., 3)))
 flextable(xx) %>% save_as_docx( path = "name.docx")
 ```
 
+# Composite Plots 
 
 
+```{r}
+CHLA_trial_1 + CHLA + CHLA_t3 + 
+  plot_layout(widths = c(1, 2, 2))
+```
+ggsave("trial1_2_3_pyroCHL.pdf", width = 12, height = 6)
 
 
 ```{r}
