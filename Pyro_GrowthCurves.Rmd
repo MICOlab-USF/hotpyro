@@ -174,8 +174,68 @@ CHLA_trial_1
 
 
 #### Growth Rates 
+```{r}
+log_CHLA_t1 <- chla  %>%  ggplot(aes(x = Day, y = Chlorophyll.a, shape = Bact, color = Bact))+ scale_shape_manual(values=c( 16, 17 )) +
+  theme_test()  +   scale_color_manual(values = c("#9E0142","pink")) +
+  geom_point(size =2, alpha =0.2)+ geom_smooth(se = FALSE) +  facet_grid(Temp ~ Salinity) +
+  ylab("log10 Chlorophyll a (RFU)") + 
+  xlab("Experiment day") + ggtitle("Trial 2") + theme(legend.position = "bottom") +  
+  scale_x_continuous(breaks = c(0, 10, 20)) + scale_y_log10()
+
+log_CHLA_t1
+```
 
 
+```{r}
+many_easy_linear0 <- all_easylinear(Chlorophyll.a~Day | Bact + Temp + Salinity + Replicate, data = chla, h =4, quota = 1 )
+
+par(mfrow = c(6, 6))
+par(mar = c(1.5, 1.2, 1, 1))
+par(mgp = c(2, 0.4, 0))
+plot(many_easy_linear0, log = "y")
+```
+
+
+```{r}
+pdf("t0_gr_supp.pdf", width = 10, height= 6)
+par(mfrow = c(6, 6))
+par(mar = c(1.5, 1.2, 1, 1))
+par(mgp = c(2, 0.4, 0))
+plot(many_easy_linear0, log = "y")
+dev.off()
+```
+
+
+
+```{r}
+res0<- results(many_easy_linear0)
+res0$Salinity <- as.character(res0$Salinity)
+
+res0  %>% ggplot(aes(x=Salinity, y = mumax, color = Bact, shape = Bact)) + geom_point() + facet_grid(~Temp)
+```
+
+```{r}
+mean_res0 <- res0 %>% group_by(Bact, Temp, Salinity) %>% 
+  dplyr::summarize(mean_gr = mean(mumax), sd = sd(mumax))
+
+growthrate_trial1<- mean_res0 %>% ggplot(aes(x = Salinity, y = mean_gr, shape = Bact, color = Bact)) +
+  scale_shape_manual(values=c( 16, 17 )) +
+  theme_test()  + scale_color_manual(values = c("#9E0142","pink")) +
+  geom_errorbar(aes(ymin=mean_gr-sd, ymax=mean_gr+sd), color = "darkgrey" ,width=.1) +
+  geom_point(size =2, fill = "white") +  facet_grid(~Temp) +ylab("Growth rate (d-1)") +xlab("Salinity (PSU)") + ggtitle("Trial 1") + theme(legend.position = "bottom")
+
+growthrate_trial1
+```
+
+```{r}
+t0_gr_aov <- aov(mumax ~ Bact*Salinity + Bact*Temp, data = res0)
+summary(t0_gr_aov)
+```
+
+```{r}
+xx <- tidy(t0_gr_aov)  %>% mutate(across(where(is.numeric), ~ round(., 3)))
+flextable(xx) %>% save_as_docx( path = "name.docx")
+```
 
 #### Maximum chla 
 
@@ -615,11 +675,8 @@ log_CHLA_t2
 
 ```{r}
 dat1 <-  hw1 %>% filter(Transfer==1)
-dat1$hours <- dat1$Day*24
 
-check<- dat1 %>%  filter(SampleID == "LD_32_20_NO3_1")
-
-many_easy_linear1 <- all_easylinear(CHL~hours | Isolate + temp + salinity + Nitrogen + Rep, data = dat1, h =9, quota = 1 )
+many_easy_linear1 <- all_easylinear(CHL~Day | Isolate + temp + salinity + Nitrogen + Rep, data = dat1, h =9, quota = 1 )
 
 
 par(mfrow = c(12, 6))
@@ -652,6 +709,10 @@ growthrate_trial2
 t1_gr_aov <- aov(mumax ~ Isolate*salinity + Isolate*temp + Isolate*Nitrogen, data = res1)
 summary(t1_gr_aov)
 ```
+```{r}
+xx <- tidy(t1_gr_aov)  %>% mutate(across(where(is.numeric), ~ round(., 3)))
+flextable(xx) %>% save_as_docx( path = "name.docx")
+```
 
 
 #### max biomass
@@ -679,21 +740,12 @@ MaxBiomass_trial2
 t1_maxbio_aov <- aov(max_b ~ Isolate*salinity + Isolate*temp + Isolate*Nitrogen, data = maxbiomass)
 summary(t1_maxbio_aov)
 ```
-
-
-
-
 ```{r}
 xx <- tidy(t1_maxbio_aov)  %>% mutate(across(where(is.numeric), ~ round(., 3)))
 flextable(xx) %>% save_as_docx( path = "name.docx")
 ```
 
-
-
-
 ### Trial 3 
-
-
 ```{r}
 CHLA_t3 <- hw1 %>% filter(Transfer==2) %>%  group_by(Isolate, temp, salinity, Day, Nitrogen) %>% 
   dplyr::summarize(mean_chla = mean(CHL), sd = sd(CHL)) %>% 
@@ -707,7 +759,6 @@ CHLA_t3 <- hw1 %>% filter(Transfer==2) %>%  group_by(Isolate, temp, salinity, Da
 CHLA_t3
 ```
 
-Log -y 
 
 #### growth rates  
 ```{r}
@@ -723,9 +774,8 @@ log_CHLA_t3
 
 ```{r}
 dat2 <-  hw1 %>% filter(Transfer==2)
-dat2$hours <- dat2$Day*24
 
-many_easy_linear2 <- all_easylinear(CHL~hours | Isolate + temp + salinity + Nitrogen + Rep, data = dat2, h =6, quota = 1 )
+many_easy_linear2 <- all_easylinear(CHL~Day | Isolate + temp + salinity + Nitrogen + Rep, data = dat2, h =6, quota = 1 )
 
 
 par(mfrow = c(12, 6))
@@ -758,8 +808,13 @@ growthrate_trial3
 t2_gr_aov <- aov(mumax ~ Isolate*salinity + Isolate*temp + Isolate*Nitrogen, data = res2)
 summary(t2_gr_aov)
 ```
+```{r}
+xx <- tidy(t2_gr_aov)  %>% mutate(across(where(is.numeric), ~ round(., 3)))
+flextable(xx) %>% save_as_docx( path = "name.docx")
+```
 
 
+#### max biomass
 
 ```{r}
 maxbiomass2 <- hw1 %>% filter(Transfer==2) %>% group_by(Isolate, temp, salinity, Nitrogen, Rep) %>% 
@@ -789,20 +844,19 @@ summary(t3_maxbio_aov)
 
 ```{r}
 xx <- tidy(t3_maxbio_aov)  %>% mutate(across(where(is.numeric), ~ round(., 3)))
-
 flextable(xx) %>% save_as_docx( path = "name.docx")
 ```
 
 # Composite Plots 
 
-
+## Growth curves
 ```{r}
 CHLA_trial_1 + CHLA + CHLA_t3 + 
   plot_layout(widths = c(1, 2, 2))
 ```
 ggsave("trial1_2_3_pyroCHL.pdf", width = 12, height = 6)
 
-
+## Max Biomass
 ```{r}
 MaxBiomass_trial1 + MaxBiomass_trial2 + MaxBiomass_trial3 + 
   plot_layout(widths = c(1, 2, 2))
@@ -810,6 +864,18 @@ MaxBiomass_trial1 + MaxBiomass_trial2 + MaxBiomass_trial3 +
 
 ggsave("pyro_maxChla.pdf", width = 9, height = 5 )
 
+## GrowthRates
+
+```{r}
+growthrate_trial1 + growthrate_trial2 + growthrate_trial3 + 
+  plot_layout(widths = c(1, 2, 2))
+```
+
+ggsave("pyro_gr.pdf", width = 9, height = 5 )
+
+
+
+# Corr Chla + cell counts
 ```{r}
 HWdf$mergeby <- paste(HWdf$SampleID, as.character(HWdf$Date), sep = "_")
 
