@@ -511,16 +511,14 @@ bactgrowthrate_trial2
 ```
 
 ```{r}
-t1_gr_aov <- aov(mumax ~ Isolate*salinity + Isolate*temp + Isolate*Nitrogen, data = res1)
-summary(t1_gr_aov)
+t2_bact_gr_aov <- aov(mumax ~ Bact*Salinity + Bact*Temp + Bact*Nitrogen, data = res1)
+summary(t2_bact_gr_aov)
 ```
+
 ```{r}
-xx <- tidy(t1_gr_aov)  %>% mutate(across(where(is.numeric), ~ round(., 3)))
+xx <- tidy(t2_bact_gr_aov)  %>% mutate(across(where(is.numeric), ~ round(., 3)))
 flextable(xx) %>% save_as_docx( path = "name.docx")
 ```
-
-
-
 
 
 
@@ -560,7 +558,10 @@ HWdf %>%  filter(Gate == "R3")  %>% ggplot(aes(x=Date, y = Concentration, fill =
 ```{r}
 day_date2 <- hw1 %>% filter(Transfer == 2) %>%  select(Date, Day) %>% distinct()
 
-HWdf <- left_join(HWdf, day_date2)
+
+day_date2 <- rbind(day_date2, c(ymd("2025-06-26"), 2))
+HWdf <- left_join(HWdf, day_date2, by="Date")
+
 HWdf$Bact <-factor(HWdf$Bact, levels = c("OTB", "LD"))
 
 bact_curve_t3 <- HWdf %>% filter(Gate == "R3") %>%  group_by(Bact, Temp, Salinity, Day, Nitrogen) %>% 
@@ -577,6 +578,8 @@ bact_curve_t3
 
 #### Max Biomass
 ```{r}
+
+
 bact_maxbiomass2 <- HWdf %>% filter(Gate == "R3") %>%  group_by(Bact, Temp, Salinity, Nitrogen, Replicate) %>% 
    dplyr::summarize(max_b = max(Concentration))
 
@@ -607,6 +610,61 @@ flextable(xx) %>% save_as_docx( path = "name.docx")
 corr between max pyro biomass and max bact biomass?
 
 or corr between final pyro / final bact? 
+
+
+#### growth rates
+```{r}
+log_bact_t3 <- HWdf %>% filter(Gate == "R3") %>%  ggplot(aes(x = Day, y = Concentration, shape = Bact, color = Bact))+ scale_shape_manual(values=c( 16, 17 )) +
+  theme_test()  +   scale_color_manual(values = c("#2166AC","#92C5DE")) +
+  geom_point(size =2, alpha =0.2)+ geom_smooth(se = FALSE) +  facet_grid(Temp ~ Nitrogen + Salinity) +
+  ylab("log10 Bacterial cell concetration (ul-1)") + 
+  xlab("Experiment day") + ggtitle("Trial 2") + theme(legend.position = "bottom") +  
+  scale_x_continuous(breaks = c(0, 10, 20)) +  scale_y_continuous(trans = 'log2')
+
+log_bact_t3
+```
+
+```{r}
+bact3<-   HWdf %>% filter(Gate == "R3")
+
+bact_easy_linear3 <- all_easylinear(Concentration~Day | Bact + Temp + Salinity + Nitrogen + Replicate, data = bact3, h =10, quota = 1 )
+
+par(mfrow = c(12, 6))
+par(mar = c(1, 1, 1, 1))
+plot(bact_easy_linear3, log = "y")
+```
+
+```{r}
+res1<- results(bact_easy_linear3)
+res1$Salinity <- as.character(res1$Salinity)
+res1$Bact <- factor(res1$Bact, levels =c("OTB", "LD"))
+
+res1  %>% ggplot(aes(x=Salinity, y = mumax, color = Bact, shape = Bact)) + geom_point() + facet_grid(~Temp+Nitrogen)
+```
+
+```{r}
+mean_res1 <- res1 %>% group_by(Bact, Temp, Salinity, Nitrogen) %>% 
+  dplyr::summarize(mean_gr = mean(mumax), sd = sd(mumax))
+
+bactgrowthrate_trial2<- mean_res1 %>% ggplot(aes(x = Salinity, y = mean_gr, shape = Bact, color = Bact)) +
+  scale_shape_manual(values=c( 16, 17 )) +
+  theme_test()  + scale_color_manual(values = c("darkgreen","#91CF60")) +
+  geom_errorbar(aes(ymin=mean_gr-sd, ymax=mean_gr+sd), color = "darkgrey" ,width=.1) +
+  geom_point(size =2, fill = "white") +  facet_grid(~Temp+Nitrogen) +ylab("Growth rate (d-1)") +xlab("Salinity (PSU)") + ggtitle("Trial 2") + theme(legend.position = "bottom")
+
+bactgrowthrate_trial2
+```
+
+```{r}
+t2_bact_gr_aov <- aov(mumax ~ Bact*Salinity + Bact*Temp + Bact*Nitrogen, data = res1)
+summary(t2_bact_gr_aov)
+```
+
+```{r}
+xx <- tidy(t2_bact_gr_aov)  %>% mutate(across(where(is.numeric), ~ round(., 3)))
+flextable(xx) %>% save_as_docx( path = "name.docx")
+```
+
 
 # Pyrodinium 
 ## Cell counts 
