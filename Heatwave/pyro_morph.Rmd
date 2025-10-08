@@ -50,17 +50,14 @@ summary_dat <- dat %>%
   )
 ```
  
-
 ```{r}
-dat <- dat %>%
-  separate(Sample, into = c("bact"), sep = "_", remove = FALSE)
-
-ggplot(dat, aes(x = bact, y = percent_cyst)) +
+ggplot(dat, aes(x = Sample, y = percent_cyst)) +
   geom_jitter(width = 0.2, alpha = 0.5) +
-  stat_summary(fun = mean, geom = "point", size = 3, color = "blue") +
+  stat_summary(fun = mean, geom = "point", size = 3, color = "red") +
   labs(y = "% Cysts", x = "Sample") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   theme_classic()
+
 
 ```
 ```{r}
