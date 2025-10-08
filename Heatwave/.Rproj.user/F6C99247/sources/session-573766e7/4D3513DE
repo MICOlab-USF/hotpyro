@@ -3,7 +3,7 @@
     "path": "C:/Users/lilia/OneDrive/Desktop/hotpyro/Heatwave/pyro_morph.Rmd",
     "project_path": "pyro_morph.Rmd",
     "type": "r_markdown",
-    "hash": "2296947696",
+    "hash": "211726571",
     "contents": "",
     "dirty": false,
     "created": 1759515128170.0,
@@ -14,16 +14,16 @@
         "source_window_id": "",
         "Source": "Source",
         "cursorPosition": "190,5",
-        "scrollLine": "175",
+        "scrollLine": "33",
         "last_setup_crc32": "",
         "docOutlineVisible": "1"
     },
     "folds": "",
-    "lastKnownWriteTime": 1759532962,
+    "lastKnownWriteTime": 1759868286,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1759532962419,
+    "last_content_update": 1759941272488,
     "read_only": false,
     "read_only_alternatives": []
 }

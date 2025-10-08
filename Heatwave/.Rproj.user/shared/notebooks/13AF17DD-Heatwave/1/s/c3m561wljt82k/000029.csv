@@ -1,0 +1,4 @@
+"0",""
+"0","new_plot <- function(ggsave(""plot_by_day"", width = 10, height = 8))"
+"2","Error: unexpected '(' in ""new_plot <- function(ggsave(""
+"

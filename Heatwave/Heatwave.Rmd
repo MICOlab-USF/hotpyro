@@ -85,6 +85,45 @@ ggsave("ammoniumtrialclean_1001.jpg", width = 10, height = 8)
 ggsave("ammoniumtrialclean_1003.jpg", width = 10, height = 8)
 ggsave("ammoniumtrialclean_1006.jpg", width = 10, height = 8)
 
+```{r}
+
+`%ni%` <- Negate(`%in%`)
+
+#Function Definition
+plot_by_day <- function(data = ammonium_trial, rounds = c(1, 3, 4, 5)) {
+  
+#Data
+  amm <- data %>%
+    filter(Round %in% rounds) %>%
+    separate(Culture, into = c("bact"), sep = "_", remove = FALSE) %>%
+    separate(bact, into = c("x", "y", "z", "bact1"), sep = " ", remove = FALSE) %>%
+    mutate(
+      bact1 = case_when(
+        bact %in% c("LL", "OTB") ~ bact,
+        bact %ni% c("LL", "OTB") ~ bact1
+      )
+    )
+  
+#Plot
+  plot <- ggplot(amm, aes(x = Day, y = RFU, color = bact1)) +
+    geom_point(alpha = 0.8) +
+    geom_smooth(se = FALSE) +
+    theme_test() +
+    facet_grid(~Round) +
+    scale_color_manual(values = c("cornflowerblue", "gold"))
+    # + scale_y_log10() 
+  
+  return(plot)
+}
+
+plot_by_day(rounds = c(1, 3, 4, 5))
+
+new_plot <- function(ggsave("plot_by_day", width = 10, height = 8))
+
+as.character (Sys.Date(ggsave)
+```
+
+
 ## Growth rates for Round 1 of Low Diversity
 ```{r}
 library(ggplot2)
