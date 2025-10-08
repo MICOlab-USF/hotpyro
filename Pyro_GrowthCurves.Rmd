@@ -107,9 +107,6 @@ flextable(xx)
 
 
 
-```{r}
-TukeyHSD(heatwave_aov2, which = "Bact")
-```
 
 
 ## Chlorophyll
@@ -367,10 +364,59 @@ for (i in system("ls BACT_COUNT_FILES/", intern = TRUE)) {
 
 HWdf$Date <- ymd(HWdf$Date)
 
-HWdf %>% filter(Gate == "R3") %>%ggplot(aes(x=Date, y = Concentration, fill = Bact))+ geom_hline(yintercept = 1000, color = "black", linetype = "dashed") + geom_point(shape = 21, size = 2, alpha = 0.8) + theme_test() + 
+```
+
+
+```{r, warning=FALSE}
+
+data_headers<- c("Sample", "Bact" ,"Temp" , "Salinity", "Nitrogen", "Replicate", "Gate", "Volume", "X.Parameter", "Y.Parameter", "Concentration", "Date", "X.Mean", "Y.Mean", "X.SD", "Y.SD")
+
+directory = "BACT_COUNT_FILES"
+
+bact_counts_func <- function(data_headers, directory) { 
+  # make empty dataframe 
+  HWdf = data.frame(matrix(
+  vector(), 0, length(data_headers), dimnames=list(c(), data_headers)),
+                stringsAsFactors=F)
+  
+  # import bacterial count data
+  for (i in system(paste0("ls ", directory  ,"/"), intern = TRUE)) {
+  df<- read.csv(paste0(directory,"/",i))
+  date <- str_split_i(i, "_", 3)
+  date2<- str_extract(date, '.*(?=\\.csv$)')
+  df<- df %>% separate(Sample, into = c("Bact", "Temp", "Salinity", "var1", "var2"), sep = "_", remove = FALSE) %>%  mutate(Nitrogen = case_when(
+  var1 == "N" ~"NO3+NH4", 
+  var1 != "N" ~ "NO3"
+)) %>% mutate(Replicate = case_when(
+  var1 == "N" ~ var2,
+  var1 != "N" ~ var1
+)) %>% 
+  #filter(Gate =="R3") %>% 
+  select(Sample, Bact, Temp, Salinity, Nitrogen, Replicate, Gate, Volume, X.Parameter, Y.Parameter, Concentration, X.Mean, Y.Mean, X.SD, Y.SD) %>% 
+  filter(Sample != "blank") 
+  df$Date <- date2
+  HWdf <- rbind(HWdf, df)
+}
+
+HWdf$Date <- ymd(HWdf$Date)
+return(HWdf)
+  
+}
+
+t2_bactcounts<- bact_counts_func(data_headers, directory)
+
+```
+
+
+
+
+
+```{r}
+t2_bactcounts %>% filter(Gate == "R3") %>%ggplot(aes(x=Date, y = Concentration, fill = Bact))+ geom_hline(yintercept = 1000, color = "black", linetype = "dashed") + geom_point(shape = 21, size = 2, alpha = 0.8) + theme_test() + 
   facet_grid(Temp ~ Nitrogen + Salinity) + theme(panel.grid.minor.x = element_blank(), panel.grid.minor.y = element_blank()) + scale_fill_manual(values = c("lightsalmon2"  , "#1BAAE2")) +ylab("Bacterial cell concentration (cells/µl)") +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) + ggtitle ("Transfer 1")
 ```
+
 
 
 ```{r}
@@ -525,7 +571,7 @@ flextable(xx) %>% save_as_docx( path = "name.docx")
 
 ### Trial 3
 #### Growth Curves
-```{r warning = FALSE}
+```{r BactImport, warning = FALSE}
 HWdf = data.frame(matrix(
   vector(), 0, 16, dimnames=list(c(), c("Sample", "Bact" ,"Temp" , "Salinity", "Nitrogen", "Replicate", "Gate", "Volume", "X.Parameter", "Y.Parameter", "Concentration", "Date", "X.Mean", "Y.Mean", "X.SD", "Y.SD"))),
                 stringsAsFactors=F)
@@ -548,12 +594,32 @@ for (i in system("ls BACT_COUNT_FILES_2/", intern = TRUE)) {
 }
 
 HWdf$Date <- ymd(HWdf$Date)
+
+
 HWdf<- HWdf %>% filter(Date != as_date("2025-07-05"))
 
 HWdf %>%  filter(Gate == "R3")  %>% ggplot(aes(x=Date, y = Concentration, fill = Bact))+  geom_point(shape = 21, size = 2, alpha = 0.8) + theme_test() + 
   facet_grid(Temp ~ Nitrogen + Salinity) + theme(panel.grid.minor.x = element_blank(), panel.grid.minor.y = element_blank()) + scale_fill_manual(values = c("lightsalmon2"  , "#1BAAE2", "yellow")) +ylab("Bacterial cell concentration (cells/µl)") +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) + ggtitle ("Transfer 2")
 ```
+
+
+```{r warnings=False}
+data_headers<- c("Sample", "Bact" ,"Temp" , "Salinity", "Nitrogen", "Replicate", "Gate", "Volume", "X.Parameter", "Y.Parameter", "Concentration", "Date", "X.Mean", "Y.Mean", "X.SD", "Y.SD")
+
+directory = "BACT_COUNT_FILES_2"
+
+t3_bactcounts<- bact_counts_func(data_headers, directory)
+
+t3_bactcounts %>% filter(Date != as_date("2025-07-05")) %>%  filter(Gate == "R3")  %>% ggplot(aes(x=Date, y = Concentration, fill = Bact))+  geom_point(shape = 21, size = 2, alpha = 0.8) + theme_test() + 
+  facet_grid(Temp ~ Nitrogen + Salinity) + theme(panel.grid.minor.x = element_blank(), panel.grid.minor.y = element_blank()) + scale_fill_manual(values = c("lightsalmon2"  , "#1BAAE2", "yellow")) +ylab("Bacterial cell concentration (cells/µl)") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) + ggtitle ("Transfer 2")
+
+```
+
+
+
+
 
 ```{r}
 day_date2 <- hw1 %>% filter(Transfer == 2) %>%  select(Date, Day) %>% distinct()
