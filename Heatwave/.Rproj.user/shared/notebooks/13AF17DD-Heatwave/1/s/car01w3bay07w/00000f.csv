@@ -1,0 +1,2 @@
+"0","fitx <- fit_easylinear(dat$Time, dat$RFU, h = 8, quota = 0.95)"
+"0","plot(fit, log = ""y"")"
