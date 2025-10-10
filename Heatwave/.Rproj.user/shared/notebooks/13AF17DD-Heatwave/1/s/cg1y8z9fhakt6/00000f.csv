@@ -1,0 +1,1 @@
+"0","all<- all_easylinear(RFU~Time | Rep, data = rnd1, h=10, quota = 1 )"

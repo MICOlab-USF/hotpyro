@@ -114,15 +114,11 @@ plot_by_day <- function(data = ammonium_trial, rounds = c(1, 3, 4, 5)) {
   return(plot)
 }
 
-plot_by_day(rounds = c(1, 3, 4, 5))
 
-new_plot <- function(ggsave("plot_by_day", width = 10, height = 8))
-
-as.character (Sys.Date(ggsave)
 ```
 
 
-## Growth rates for Round 1 of Low Diversity
+## Growth rates for Round 1 LL
 ```{r}
 library(ggplot2)
 library(dplyr)
@@ -179,6 +175,183 @@ res<- results(all)
 
 res
 ```
+## Growth rates for Round 3 (S.T. 1) LL
+
+```{r}
+library(ggplot2)
+library(dplyr)
+ammonium_trial %>% filter(Round == "3", Culture == "S.T. 1 from LL 7/23" ) %>% ggplot(aes(x = Date, y = RFU, color = Culture, shape = factor (Round)) ) +
+  geom_point () +
+  theme_test () +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_shape_manual(values = c(16)) +
+  ggtitle(expression("Pyrodinium growth with " * NH[4]^"+" * " addition and " * NO[3]^"-" * " elimination"))
+
+```
+
+```{r}
+library(growthrates)
+rnd1 <- ammonium_trial %>% filter(Round == "3", Culture == "S.T. 1 from LL 7/23" ) %>%
+  mutate(Time = as.numeric(difftime(Date,min(Date),units = "days")))
+
+splitted.data <- multisplit(rnd1, c("Rep"))
+
+dat <- splitted.data[[1]]
+dat <- dat %>%
+  mutate(Time = as.numeric(difftime(Date,min(Date),units = "days")))
+fit <- fit_easylinear(dat$Time, dat$RFU)
+summary(fit)
+coef(fit) # exponential growth parameters
+rsquared(fit)  # coefficient of determination (of log-transformed data)
+deviance(fit)  # residual sum of squares of log-transformed data
+par(mfrow = c(1, 2))
+plot(fit, log = "y")
+plot(fit)
+```
+
+```{r}
+fitx <- fit_easylinear(dat$Time, dat$RFU, h = 8, quota = 0.95)
+plot(fit, log = "y")
+lines(fitx, pch = "+", col = "blue")
+```
+
+
+```{r}
+all<- all_easylinear(RFU~Time | Rep, data = rnd1, h=6, quota = 1 )
+```
+
+
+```{r}
+par(mfrow = c(1,3))
+par(mar= c(1,1,1,1))
+plot(all, log="y")
+```
+
+
+```{r}
+res<- results(all)
+
+res
+```
+
+## Growth rates for Round 1 OTB
+
+```{r}
+library(ggplot2)
+library(dplyr)
+ammonium_trial %>% filter(Round == "1", Culture == "OTB_1006 6/10" ) %>% ggplot(aes(x = Date, y = RFU, color = Culture, shape = factor (Round)) ) +
+  geom_point () +
+  theme_test () +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_shape_manual(values = c(16)) +
+  ggtitle(expression("Pyrodinium growth with " * NH[4]^"+" * " addition and " * NO[3]^"-" * " elimination"))
+
+```
+
+```{r}
+library(growthrates)
+rnd1 <- ammonium_trial %>% filter(Round == "1", Culture == "OTB_1006 6/10" ) %>%
+  mutate(Time = as.numeric(difftime(Date,min(Date),units = "days")))
+
+splitted.data <- multisplit(rnd1, c("Rep"))
+
+dat <- splitted.data[[1]]
+dat <- dat %>%
+  mutate(Time = as.numeric(difftime(Date,min(Date),units = "days")))
+fit <- fit_easylinear(dat$Time, dat$RFU)
+summary(fit)
+coef(fit) # exponential growth parameters
+rsquared(fit)  # coefficient of determination (of log-transformed data)
+deviance(fit)  # residual sum of squares of log-transformed data
+par(mfrow = c(1, 2))
+plot(fit, log = "y")
+plot(fit)
+```
+
+```{r}
+fitx <- fit_easylinear(dat$Time, dat$RFU, h = 8, quota = 0.95)
+plot(fit, log = "y")
+lines(fitx, pch = "+", col = "blue")
+```
+
+
+```{r}
+all<- all_easylinear(RFU~Time | Rep, data = rnd1, h=10, quota = 1 )
+```
+
+
+```{r}
+par(mfrow = c(1,3))
+par(mar= c(1,1,1,1))
+plot(all, log="y")
+```
+
+
+```{r}
+res<- results(all)
+
+res
+```
+
+## Growth rates for Round 3 (S.T. 1) OTB
+
+```{r}
+library(ggplot2)
+library(dplyr)
+ammonium_trial %>% filter(Round == "3", Culture == "S.T. 1 from OTB 6/10" ) %>% ggplot(aes(x = Date, y = RFU, color = Culture, shape = factor (Round)) ) +
+  geom_point () +
+  theme_test () +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_shape_manual(values = c(16)) +
+  ggtitle(expression("Pyrodinium growth with " * NH[4]^"+" * " addition and " * NO[3]^"-" * " elimination"))
+
+```
+
+```{r}
+library(growthrates)
+rnd1 <- ammonium_trial %>% filter(Round == "3", Culture == "S.T. 1 from OTB 6/10" ) %>%
+  mutate(Time = as.numeric(difftime(Date,min(Date),units = "days")))
+
+splitted.data <- multisplit(rnd1, c("Rep"))
+
+dat <- splitted.data[[1]]
+dat <- dat %>%
+  mutate(Time = as.numeric(difftime(Date,min(Date),units = "days")))
+fit <- fit_easylinear(dat$Time, dat$RFU)
+summary(fit)
+coef(fit) # exponential growth parameters
+rsquared(fit)  # coefficient of determination (of log-transformed data)
+deviance(fit)  # residual sum of squares of log-transformed data
+par(mfrow = c(1, 2))
+plot(fit, log = "y")
+plot(fit)
+```
+
+```{r}
+fitx <- fit_easylinear(dat$Time, dat$RFU, h = 8, quota = 0.95)
+plot(fit, log = "y")
+lines(fitx, pch = "+", col = "blue")
+```
+
+
+```{r}
+all<- all_easylinear(RFU~Time | Rep, data = rnd1, h=6, quota = 1 )
+```
+
+
+```{r}
+par(mfrow = c(1,3))
+par(mar= c(1,1,1,1))
+plot(all, log="y")
+```
+
+
+```{r}
+res<- results(all)
+
+res
+```
+
 
 
 
