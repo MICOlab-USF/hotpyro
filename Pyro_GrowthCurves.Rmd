@@ -846,6 +846,13 @@ CHLA
 ```
 ggsave("t1_pyrocurves.png", width = 6, height = 5)
 
+
+get t2, NO3, 24 , both back 
+```{r}
+
+```
+
+
 #### growth rates
 ```{r}
 log_CHLA_t2 <- hw1 %>% filter(Transfer==1) %>%  ggplot(aes(x = Day, y = CHL, shape = Isolate, color = Isolate))+ scale_shape_manual(values=c( 16, 17 )) +
@@ -876,6 +883,16 @@ res1$Isolate <- factor(res1$Isolate, levels =c("OTB", "LD"))
 
 res1  %>% ggplot(aes(x=salinity, y = mumax, color = Isolate, shape = Isolate)) + geom_point() + facet_grid(~temp+Nitrogen)
 ```
+
+
+get t1 growth rates for lilianna 
+```{r}
+t1_gr_for_lg <- as.data.frame(res1 %>%  filter(temp == 24, salinity == 25, Nitrogen == "NO3"))
+t1_gr_for_lg$Transfer <- 1 
+```
+
+
+
 
 ```{r}
 mean_res1 <- res1 %>% group_by(Isolate, temp, salinity, Nitrogen) %>% 
@@ -975,6 +992,22 @@ res2$Isolate <- factor(res2$Isolate, levels =c("OTB", "LD"))
 
 res2  %>% ggplot(aes(x=salinity, y = mumax, color = Isolate, shape = Isolate)) + geom_point() + facet_grid(~temp+Nitrogen)
 ```
+
+```{r}
+t2_gr_for_lg <- as.data.frame(res2 %>%  filter(temp == 24, salinity == 25, Nitrogen =="NO3"))
+t2_gr_for_lg$Transfer <- 2
+
+
+gr_for_lg <- rbind(t1_gr_for_lg, t2_gr_for_lg)
+
+gr_for_lg$ID <- paste0(gr_for_lg$Isolate, "_", gr_for_lg$Nitrogen, "_" ,gr_for_lg$Transfer, "_", gr_for_lg$Rep)
+
+gr_for_lg <- gr_for_lg %>% select(Isolate, Nitrogen, Rep, Transfer, ID, mumax, r2)
+
+write.csv(gr_for_lg, "gr_for_lg.csv", quote=FALSE, row.names = FALSE)
+```
+
+
 
 ```{r}
 mean_res2 <- res2 %>% group_by(Isolate, temp, salinity, Nitrogen) %>% 
