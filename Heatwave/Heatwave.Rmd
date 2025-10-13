@@ -81,7 +81,7 @@ amm <- ammonium_trial %>% filter(Round %in% c(1, 3, 4, 5)) %>% separate(Culture,
 amm %>% ggplot(aes(x=Day, y = RFU, color = bact1)) + geom_point(alpha = 0.8) + theme_test() + facet_grid(~Round) + scale_color_manual(values = c("cornflowerblue", "gold" ))+ geom_smooth(se = FALSE) #+ scale_y_log10()
 ```
 
-ggsave("ammoniumtrialclean_1010.jpg", width = 10, height = 8)
+ggsave("ammoniumtrialclean_1013.jpg", width = 10, height = 8)
 
 ```{r}
 
@@ -350,6 +350,7 @@ plot(all, log="y")
 res<- results(all)
 
 res
+
 ```
 
 ## Rbind
@@ -381,7 +382,10 @@ amm %>%
   facet_grid(~Round) + 
   scale_color_manual(values = c("cornflowerblue", "gold")) + 
   geom_smooth(se = FALSE)
-  
+```
+
+
+```{r}
 # Filter for specific subset
 gr_LL_rd1 <- amm %>%
   filter(bact1 == "LL", N == "NH4", Round == 1, Rep == 1) %>%
@@ -399,14 +403,116 @@ mean_res1 <- gr_LL_rd1 %>%
     sd = sd(mumax, na.rm = TRUE),
     .groups = "drop"
   )
+```
 
+
+```{r}
 library(dplyr)
+
+df1_text <- "
+bact1, N, Round, Rep, mumax
+LL, NH4, 1, 1, 0.1677532
+LL, NH4, 1, 2, 0.1552915
+LL, NH4, 1, 3, 0.1754041
+LL, NH4, 3, 1, 0.2494516
+LL, NH4, 3, 2, 0.2207191
+LL, NH4, 3, 3, 0.2149846
+OTB, NH4, 1, 1, 0.09253599
+OTB, NH4, 1, 2, 0.08705956
+OTB, NH4, 1, 3, 0.10212820
+OTB, NH4, 3, 1, 0.2416831
+OTB, NH4, 3, 2, 0.1819155
+OTB, NH4, 3, 3, 0.2065674
+"
+
+df1 <- read.csv(text = df1_text, stringsAsFactors = FALSE)
 
 df1 <- df1 %>%
   mutate(ID = paste(bact1, N, Round, Rep, sep = "_"))
 
-df2 <- df2 %>%
+print(df1)
+
+
+# Maggi gr 
+
+
+df2_text <- "
+Isolate,Nitrogen,Rep,Transfer,ID,mumax,r2
+OTB,NO3,1,1,OTB_NO3_1_1,0.114120395408565,0.68976463365446
+LD,NO3,1,1,LD_NO3_1_1,0.0933373154550199,0.575799428132732
+OTB,NO3,2,1,OTB_NO3_1_2,0.16020914804909,0.851748240175957
+LD,NO3,2,1,LD_NO3_1_2,0.0717797175865913,0.51825399128368
+OTB,NO3,3,1,OTB_NO3_1_3,0.189612813415725,0.951462120451673
+LD,NO3,3,1,LD_NO3_1_3,0.0975980555917156,0.642897908231712
+OTB,NO3,1,2,OTB_NO3_2_1,0.271391985872395,0.790701231589318
+LD,NO3,1,2,LD_NO3_2_1,0.153628701555169,0.698985490602533
+OTB,NO3,2,2,OTB_NO3_2_2,0.202661517208214,0.916823000149281
+LD,NO3,2,2,LD_NO3_2_2,0.27895462907155,0.936519134772629
+OTB,NO3,3,2,OTB_NO3_2_3,0.252178631084456,0.831824949836659
+LD,NO3,3,2,LD_NO3_2_3,0.142344675282164,0.733576150157809
+"
+# Read df2 from text
+df2 <- read.csv(text = df2_text)
+
+# Clean and align df2 AFTER renaming
+
+
+
+df2_clean <- df2 %>%
+  rename(
+    bact1 = Isolate,
+    N = Nitrogen
+  ) %>%
+  mutate(
+    Round = Transfer,  # If Round is equivalent to Transfer
+    ID = paste(bact1, N, Round, Rep, sep = "_")
+  ) %>%
+  select(bact1, N, Rep, Transfer, Round, ID, mumax)
+df2_clean <- df2_clean %>%
+  mutate(bact1 = ifelse(bact1 == "LD", "LL", bact1))
+df2_clean <- df2_clean %>%
   mutate(ID = paste(bact1, N, Round, Rep, sep = "_"))
+
+
+df2_clean <- df2 %>%
+  rename(
+    bact1 = Isolate,
+    N = Nitrogen
+  ) %>%
+  select(bact1, N, Rep, Transfer, ID, mumax)
+
+
+gr_LL_rd1_clean <- gr_LL_rd1 %>%
+  mutate(
+    Transfer = 1,  # if it doesn't exist, assume 1
+    ID = paste(bact1, N, Round, Rep, sep = "_")
+  ) %>%
+  select(bact1, N, Rep, Transfer, ID, mumax)
+
+gr_LL_rd1_clean <- gr_LL_rd1_clean %>%
+  mutate(Rep = as.character(Rep))
+
+combined_df <- combined_df %>%
+  mutate(bact1 = ifelse(bact1 == "LD", "LL", bact1))
+
+```
+## GR Box plot
+```{r}
+library(ggplot2)
+
+ggplot(combined_df, aes(x = N, y = mumax, fill = bact1)) +
+  geom_boxplot(alpha = 0.7, outlier.shape = NA, width = 0.6) +
+  geom_jitter(aes(color = bact1), width = 0.2, size = 2, alpha = 0.6) +
+  labs(
+    title = "Growth rate (μmax) by Nitrogen Type and Isolate",
+    x = "Nitrogen Source",
+    y = "Growth Rate (μmax)",
+    fill = "Isolate",
+    color = "Isolate"
+  ) +
+  theme_minimal(base_size = 14)
+
+table(combined_df$bact1, combined_df$N)
 
 ```
 
@@ -449,6 +555,6 @@ hottrial %>%
 
   
 ```
-ggsave("hotonestrial_1010.jpg", width = 7, height = 6)
+ggsave("hotonestrial_1013.jpg", width = 7, height = 6)
 
 
