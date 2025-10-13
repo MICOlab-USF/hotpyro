@@ -481,16 +481,13 @@ df2_clean <- df2 %>%
   ) %>%
   select(bact1, N, Rep, Transfer, ID, mumax)
 
+# First make sure both df1 and df2_clean have the same columns
+df1 <- df1 %>%
+  mutate(Transfer = Round) %>%
+  select(bact1, N, Rep, Transfer, Round, ID, mumax)
 
-gr_LL_rd1_clean <- gr_LL_rd1 %>%
-  mutate(
-    Transfer = 1,  # if it doesn't exist, assume 1
-    ID = paste(bact1, N, Round, Rep, sep = "_")
-  ) %>%
-  select(bact1, N, Rep, Transfer, ID, mumax)
-
-gr_LL_rd1_clean <- gr_LL_rd1_clean %>%
-  mutate(Rep = as.character(Rep))
+# Combine NH4 and NO3 data
+combined_df <- bind_rows(df1, df2_clean)
 
 combined_df <- combined_df %>%
   mutate(bact1 = ifelse(bact1 == "LD", "LL", bact1))
