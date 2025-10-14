@@ -514,6 +514,25 @@ table(combined_df$bact1, combined_df$N)
 ```
 
 
+```{r}
+
+combined_df %>% mutate(Transfer, case_when(3~2) )
+
+
+ggplot(combined_df, aes(x = N, y = mumax, fill = bact1)) +
+  geom_boxplot(alpha = 0.7, outlier.shape = NA, width = 0.6) +
+  geom_jitter(aes(color = bact1), width = 0.2, size = 2, alpha = 0.6) +
+  labs(
+    title = "Growth rate (μmax) by Nitrogen Type and Isolate",
+    x = "Nitrogen Source",
+    y = "Growth Rate (μmax)",
+    fill = "Isolate",
+    color = "Isolate"
+  ) + facet_grid(~Transfer)+
+  theme_minimal(base_size = 14)
+```
+
+
 ## 34°C Trial
 ```{r import_packages, warning=FALSE}
 library(tidyr)
