@@ -516,22 +516,21 @@ table(combined_df$bact1, combined_df$N)
 
 ```{r}
 library(dplyr)
+library(ggplot2)
 
-# For df1: already has Round = 1 or 3 (NH4)
+# --- Clean df1: already has Round = 1 or 3 (NH4) ---
 df1 <- df1 %>%
   mutate(
     Round = case_when(
       Round == 1 ~ 1,
       Round == 3 ~ 2
     ),
-    Transfer = Round
+    Transfer = Round,
+    N = trimws(as.character(N))  # Remove extra spaces
   ) %>%
   select(bact1, N, Rep, Transfer, Round, ID, mumax)
-```
 
-
-```{r}
-# For df2: Transfer == 1 or 2 (NO3)
+# --- Clean df2: Transfer == 1 or 2 (NO3) ---
 df2_clean <- df2 %>%
   rename(
     bact1 = Isolate,
@@ -543,13 +542,15 @@ df2_clean <- df2 %>%
       Transfer == 2 ~ 2  
     ),
     bact1 = ifelse(bact1 == "LD", "LL", bact1),
-    ID = paste(bact1, N, Round, Rep, sep = "_")
+    ID = paste(bact1, N, Round, Rep, sep = "_"),
+    N = trimws(as.character(N))  # Remove extra spaces
   ) %>%
   select(bact1, N, Rep, Transfer, Round, ID, mumax)
 
+# --- Combine both datasets ---
 combined_df <- bind_rows(df1, df2_clean)
 
-
+# --- Plot ---
 ggplot(combined_df, aes(x = N, y = mumax, fill = bact1)) +
   geom_boxplot(alpha = 0.7, outlier.shape = NA, width = 0.6) +
   geom_jitter(aes(color = bact1), width = 0.2, size = 2, alpha = 0.6) +
@@ -559,10 +560,18 @@ ggplot(combined_df, aes(x = N, y = mumax, fill = bact1)) +
     y = "Growth Rate (μmax)",
     fill = "Isolate",
     color = "Isolate"
-  ) + facet_grid(~Transfer)+
+  ) +
+  facet_grid(~Transfer) +
+  scale_x_discrete(labels = c(
+    "NO3" = expression(NO[3]),
+    "NH4" = expression(NH[4])
+  )) +
+  scale_fill_manual(values = c("gold", "purple")) +
+  scale_color_manual(values = c("gold", "purple")) +
   theme_test(base_size = 14)
+
 ```
-ggsave("NH4_NO3_boxplot.jpg", width = 7, height = 6)
+ggsave("updated_NH4_NO3_boxplot.jpg", width = 7, height = 6)
 
 ## 34°C Trial
 ```{r import_packages, warning=FALSE}
