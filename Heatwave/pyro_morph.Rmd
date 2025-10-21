@@ -161,13 +161,15 @@ dat <- dat %>%
   mutate(Date = parse_date_time(Date, orders = c("mdy", "dmy", "ymd"))) %>%
   filter(!is.na(Date))
 
-# 3️⃣ Separate Sample
+# 3️⃣ Parse Sample into Bact, Temp, Salinity, and Rep
 morph <- dat %>%
-  separate(Sample, into = c("Bact", "Temp", "Salinity"), sep = "_", remove = FALSE) %>%
+  separate(Sample, into = c("Bact", "Temp", "Salinity", "Extra", "Rep"), sep = "_", remove = FALSE, fill = "right") %>%
   mutate(
-    Rep  = str_sub(Bact, start = -1),
-    Bact = str_sub(Bact, end = -2)
-  )
+    Rep = ifelse(is.na(Rep), Extra, Rep),  # If 4 parts (like OTB_H_30_1), Rep is in "Extra"
+    Rep = as.character(Rep)
+  ) %>%
+  select(-Extra)  # Drop if you don't need the extra column
+
 
 # 4️⃣ Pivot longer and calculate relative abundance
 rel_abund_by_rep <- morph %>%
@@ -202,6 +204,9 @@ if("cyst" %in% rel_abund_by_rep$category){
         panel.grid.major.x = element_blank(),
         panel.grid.minor.y = element_blank()
       ) +
+      scale_color_manual(
+  values = c("LD" = "#00CED1", "OTB" = "#CD7F32")
+) +
       ggtitle("Relative Abundance of Cysts by Replicate") +
       ylab("Percent of total counts")
   } else {
@@ -214,6 +219,8 @@ if("cyst" %in% rel_abund_by_rep$category){
 
 
 ```
+ggsave("percent_cyst.jpg", width = 7, height = 6)
+
 ## % Exploding
 
 ```{r}
