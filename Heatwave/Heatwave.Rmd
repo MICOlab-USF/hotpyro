@@ -81,7 +81,7 @@ amm <- ammonium_trial %>% filter(Round %in% c(1, 3, 4, 5)) %>% separate(Culture,
 amm %>% ggplot(aes(x=Day, y = RFU, color = bact1)) + geom_point(alpha = 0.8) + theme_test() + facet_grid(~Round) + scale_color_manual(values = c("cornflowerblue", "gold" ))+ geom_smooth(se = FALSE) #+ scale_y_log10()
 ```
 
-ggsave("ammoniumtrialclean_1024.jpg", width = 10, height = 8)
+ggsave("ammoniumtrialclean_1027.jpg", width = 10, height = 8)
 
 ```{r}
 
@@ -233,6 +233,63 @@ res<- results(all)
 
 res
 ```
+## Growth rates for Round 4 (S.T.2) LL
+```{r}
+library(ggplot2)
+library(dplyr)
+ammonium_trial %>% filter(Round == "4", Culture == "S.T. 2 from LL 7/23" ) %>% ggplot(aes(x = Date, y = RFU, color = Culture, shape = factor (Round)) ) +
+  geom_point () +
+  theme_test () +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_shape_manual(values = c(16)) +
+  ggtitle(expression("Pyrodinium growth with " * NH[4]^"+" * " addition and " * NO[3]^"-" * " elimination"))
+
+```
+
+```{r}
+library(growthrates)
+rnd1 <- ammonium_trial %>% filter(Round == "4", Culture == "S.T. 2 from LL 7/23" ) %>%
+  mutate(Time = as.numeric(difftime(Date,min(Date),units = "days")))
+
+splitted.data <- multisplit(rnd1, c("Rep"))
+
+dat <- splitted.data[[1]]
+dat <- dat %>%
+  mutate(Time = as.numeric(difftime(Date,min(Date),units = "days")))
+fit <- fit_easylinear(dat$Time, dat$RFU)
+summary(fit)
+coef(fit) # exponential growth parameters
+rsquared(fit)  # coefficient of determination (of log-transformed data)
+deviance(fit)  # residual sum of squares of log-transformed data
+par(mfrow = c(1, 2))
+plot(fit, log = "y")
+plot(fit)
+```
+
+```{r}
+fitx <- fit_easylinear(dat$Time, dat$RFU, h = 8, quota = 0.95)
+plot(fit, log = "y")
+lines(fitx, pch = "+", col = "blue")
+```
+
+
+```{r}
+all<- all_easylinear(RFU~Time | Rep, data = rnd1, h=6, quota = 1 )
+```
+
+
+```{r}
+par(mfrow = c(1,3))
+par(mar= c(1,1,1,1))
+plot(all, log="y")
+```
+
+
+```{r}
+res<- results(all)
+
+res
+```
 
 ## Growth rates for Round 1 OTB
 
@@ -310,6 +367,65 @@ ammonium_trial %>% filter(Round == "3", Culture == "S.T. 1 from OTB 6/10" ) %>% 
 ```{r}
 library(growthrates)
 rnd1 <- ammonium_trial %>% filter(Round == "3", Culture == "S.T. 1 from OTB 6/10" ) %>%
+  mutate(Time = as.numeric(difftime(Date,min(Date),units = "days")))
+
+splitted.data <- multisplit(rnd1, c("Rep"))
+
+dat <- splitted.data[[1]]
+dat <- dat %>%
+  mutate(Time = as.numeric(difftime(Date,min(Date),units = "days")))
+fit <- fit_easylinear(dat$Time, dat$RFU)
+summary(fit)
+coef(fit) # exponential growth parameters
+rsquared(fit)  # coefficient of determination (of log-transformed data)
+deviance(fit)  # residual sum of squares of log-transformed data
+par(mfrow = c(1, 2))
+plot(fit, log = "y")
+plot(fit)
+```
+
+```{r}
+fitx <- fit_easylinear(dat$Time, dat$RFU, h = 8, quota = 0.95)
+plot(fit, log = "y")
+lines(fitx, pch = "+", col = "blue")
+```
+
+
+```{r}
+all<- all_easylinear(RFU~Time | Rep, data = rnd1, h=6, quota = 1 )
+```
+
+
+```{r}
+par(mfrow = c(1,3))
+par(mar= c(1,1,1,1))
+plot(all, log="y")
+```
+
+
+```{r}
+res<- results(all)
+
+res
+
+```
+
+## Growth rates for Round 4 (S.T. 4) OTB
+```{r}
+library(ggplot2)
+library(dplyr)
+ammonium_trial %>% filter(Round == "4", Culture == "S.T. 2 from OTB 6/10" ) %>% ggplot(aes(x = Date, y = RFU, color = Culture, shape = factor (Round)) ) +
+  geom_point () +
+  theme_test () +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_shape_manual(values = c(16)) +
+  ggtitle(expression("Pyrodinium growth with " * NH[4]^"+" * " addition and " * NO[3]^"-" * " elimination"))
+
+```
+
+```{r}
+library(growthrates)
+rnd1 <- ammonium_trial %>% filter(Round == "4", Culture == "S.T. 2 from OTB 6/10" ) %>%
   mutate(Time = as.numeric(difftime(Date,min(Date),units = "days")))
 
 splitted.data <- multisplit(rnd1, c("Rep"))
@@ -606,11 +722,11 @@ hottrial %>%
   ggplot(aes(x = Day, y = RFU, color = Culture)) +
   geom_point() +
   theme_test() +
-  ggtitle("Pyrodinium growth in 30°C") +
+  ggtitle("Pyrodinium growth in 30°C and 31°C") +
   facet_grid(~ Round_label, scales = "free_x")
 
   
 ```
-ggsave("hotonestrial_1024.jpg", width = 10, height = 8)
+ggsave("hotonestrial_1027.jpg", width = 10, height = 8)
 
 
