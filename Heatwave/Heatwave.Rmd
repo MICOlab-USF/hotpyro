@@ -81,7 +81,7 @@ amm <- ammonium_trial %>% filter(Round %in% c(1, 3, 4, 5)) %>% separate(Culture,
 amm %>% ggplot(aes(x=Day, y = RFU, color = bact1)) + geom_point(alpha = 0.8) + theme_test() + facet_grid(~Round) + scale_color_manual(values = c("cornflowerblue", "gold" ))+ geom_smooth(se = FALSE) #+ scale_y_log10()
 ```
 
-ggsave("ammoniumtrialclean_1105.jpg", width = 10, height = 8)
+ggsave("ammoniumtrialclean_1107.jpg", width = 10, height = 8)
 
 ```{r}
 
@@ -713,20 +713,24 @@ hottrial$RFU <- as.numeric(hottrial$RFU)
 
 ```{r}
 hottrial %>%
-  filter(Round %in% c(2, 3, 4)) %>%
+  filter(Round %in% c(2, 3, 4, 5)) %>%
   mutate(Round_label = case_when(
     Round == 2 ~ "Round 1 in 30°C",
     Round == 3 ~ "S.T. 1",
     Round == 4 ~ "S.T. 2",
+    Round == 5 ~ "S.T. 3"
   )) %>%
   ggplot(aes(x = Day, y = RFU, color = Culture)) +
   geom_point() +
   theme_test() +
   ggtitle("Pyrodinium growth in 30°C and 31°C") +
-  facet_grid(~ Round_label, scales = "free_x")
+  facet_grid(~ Round_label, scales = "free_x") +
+  geom_smooth(se = FALSE) +
+  scale_color_manual(values = c("forestgreen", "burlywood" ))
+
 
   
 ```
-ggsave("hotonestrial_1105.jpg", width = 10, height = 8)
+ggsave("hotonestrial_1107.jpg", width = 10, height = 8)
 
 
