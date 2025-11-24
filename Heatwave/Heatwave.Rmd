@@ -724,7 +724,7 @@ hottrial %>%
   ggplot(aes(x = Day, y = RFU, color = Culture)) +
   geom_point() +
   theme_test() +
-  ggtitle("Pyrodinium growth in 30°C and 31°C") +
+  ggtitle("Pyrodinium growth in warming temperatures") +
   facet_grid(~ Round_label, scales = "free_x") +
   geom_smooth(se = FALSE) +
   scale_color_manual(values = c("forestgreen", "burlywood" ))
@@ -732,6 +732,6 @@ hottrial %>%
 
   
 ```
-ggsave("hotonestrial_1119.jpg", width = 11, height = 8)
+ggsave("hotonestrial_1124.jpg", width = 11, height = 8)
 
 
