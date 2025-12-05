@@ -713,13 +713,15 @@ hottrial$RFU <- as.numeric(hottrial$RFU)
 
 ```{r}
 hottrial %>%
-  filter(Round %in% c(2, 3, 4, 5, 6)) %>%
+  filter(Round %in% c(2, 3, 4, 5, 6, 7)) %>%
   mutate(Round_label = case_when(
     Round == 2 ~ "Round 1 in 30°C",
     Round == 3 ~ "S.T. 1",
     Round == 4 ~ "S.T. 2 in 31°C",
     Round == 5 ~ "S.T. 3",
-    Round == 6 ~ "S.T. 4 in 32°C"
+    Round == 6 ~ "S.T. 4 in 32°C",
+    Round == 7 ~ "S.T. 5"
+    
   )) %>%
   ggplot(aes(x = Day, y = RFU, color = Culture)) +
   geom_point() +
@@ -732,6 +734,6 @@ hottrial %>%
 
   
 ```
-ggsave("hotonestrial_1203.jpg", width = 11, height = 8)
+ggsave("hotonestrial_1205.jpg", width = 13, height = 8)
 
 
