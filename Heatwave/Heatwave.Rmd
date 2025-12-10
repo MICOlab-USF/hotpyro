@@ -734,6 +734,6 @@ hottrial %>%
 
   
 ```
-ggsave("hotonestrial_1208.jpg", width = 13, height = 8)
+ggsave("hotonestrial_1210.jpg", width = 13, height = 8)
 
 
